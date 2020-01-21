@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include <iostream>
 
 #include "d3d12-app.h"
 
@@ -7,6 +7,21 @@ namespace d3d12_sandbox {
 D3D12App::D3D12App(TCHAR const* const title, int width, int height)
     : physika::Application(title, width, height)
 {
+}
+
+bool D3D12App::Initialize()
+{
+    if (!physika::Application::Initialize()) {
+        return false;
+    }
+    return true; 
+}
+bool D3D12App::Shutdown()
+{
+    if (!physika::Application::Shutdown()) {
+        return false;
+    }
+    return true; 
 }
 
 void D3D12App::OnUpdate()

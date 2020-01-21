@@ -15,6 +15,8 @@ class D3D12App : public physika::Application
 {
 public:
     D3D12App(TCHAR const* const title, int width, int height);
+    bool Initialize() override;
+    bool Shutdown() override; 
     void OnUpdate() override;
     void OnResize(int width, int height) override;
     void OnKeyUp(Keycode key) override;
@@ -24,8 +26,8 @@ public:
     void OnMouseMove(int x, int y) override;
     void OnMouseWheel(int delta) override;
 
-    private:
-    Microsoft::WRL::ComPtr<ID3D12Device> mDevice; 
+private:
+    Microsoft::WRL::ComPtr<ID3D12Device> mDevice;
 };
 
 }  // namespace d3d12_sandbox
