@@ -320,6 +320,16 @@ bool ApplicationWin32::Shutdown()
     return DestroyWindow(mHwnd);
 }
 
+void* ApplicationWin32::ApplicationHandle()
+{
+    return mHinstance;
+}
+
+void* ApplicationWin32::WindowHandle()
+{
+    return mHwnd;
+}
+
 void ApplicationWin32::Run()
 {
     MSG msg;

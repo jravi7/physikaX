@@ -17,11 +17,11 @@ public:
 
     //! @brief Call this to initialize application.
     //! @return Bool value indicating success or failure
-    bool Initialize();
+    virtual bool Initialize();
 
     //! @brief Call this to shutdown application.
     //! @return Bool value indicating success or failure
-    bool Shutdown();
+    virtual bool Shutdown();
 
     //! @brief Call this to begin event loop.
     void Run();
@@ -50,11 +50,18 @@ public:
     //! @brief Override this to handle mouse wheel rotation event.
     virtual void OnMouseWheel(int delta);
 
-private:
+    //! @brief Returns App Handle as a void*
+    void* ApplicationHandle();
+
+    //! @brief Returns window handle as a void*
+    void* WindowHandle();
+
+protected:
     int          mWidth;
     int          mHeight;
     TCHAR const* mWindowTitle;
 
+private:
     //! OS Specific
     HWND      mHwnd;
     HINSTANCE mHinstance;
