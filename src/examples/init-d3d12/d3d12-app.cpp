@@ -14,14 +14,22 @@ bool D3D12App::Initialize()
     if (!physika::Application::Initialize()) {
         return false;
     }
-    return true; 
+
+    if (FAILED(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_12_0,
+                                 IID_PPV_ARGS(&mDevice)))) {
+        return false;
+    }
+
+    std::cout << "Graphics Device Initialized" << std::endl;
+
+    return true;
 }
 bool D3D12App::Shutdown()
 {
     if (!physika::Application::Shutdown()) {
         return false;
     }
-    return true; 
+    return true;
 }
 
 void D3D12App::OnUpdate()

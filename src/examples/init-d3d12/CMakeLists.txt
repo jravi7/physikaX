@@ -8,4 +8,10 @@ phi_add_executable(${TARGET}
                         d3d12-app.cpp)
 
 # link to app-framework static library
-target_link_libraries(${TARGET} PRIVATE app-framework)
+target_link_libraries(${TARGET} PRIVATE 
+                            app-framework 
+                            ${D3D12_LIBRARIES})
+
+# Add include dirs
+target_include_directories(${TARGET} PRIVATE 
+                                ${D3D12_INCLUDE_DIRS})
