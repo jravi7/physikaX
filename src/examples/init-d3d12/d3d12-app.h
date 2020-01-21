@@ -1,5 +1,8 @@
 #pragma once
 
+#include <d3d12.h>
+#include <wrl.h>
+
 #include "app-framework/application.h"
 #include "app-framework/input.h"
 
@@ -20,6 +23,9 @@ public:
     void OnMouseDown(MouseButton button, int x, int y) override;
     void OnMouseMove(int x, int y) override;
     void OnMouseWheel(int delta) override;
+
+    private:
+    Microsoft::WRL::ComPtr<ID3D12Device> mDevice; 
 };
 
 }  // namespace d3d12_sandbox
