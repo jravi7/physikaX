@@ -62,12 +62,12 @@ function(phi_add_library PHI_TARGET)
     )
 endfunction()
 
-############################################
+##############################################
 # Name       : phi_add_gtest
-# Description: Wrapper for creating  
-#              A unit test target that uses gtest.
+# Description: Wrapper for creating a unit
+#              test target that uses gtest.
 #              Runs test as a post-build step.
-############################################
+##############################################
 
 function(phi_add_gtest TEST_TARGET)
   cmake_parse_arguments(
@@ -80,8 +80,8 @@ function(phi_add_gtest TEST_TARGET)
   phi_add_executable(${TEST_TARGET} SOURCES ${PHI_SOURCES})
   target_link_libraries(${TEST_TARGET}  
                               PRIVATE
-                              gmock_main 
-                              gtest
+                                gmock_main 
+                                gtest
                             )
   add_custom_command(
         TARGET ${TEST_TARGET}
