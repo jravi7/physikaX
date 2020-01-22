@@ -1,5 +1,5 @@
 ############################################
-# name: phi_add_exectuable
+# Name       : phi_add_exectuable
 # Description: Wrapper for add_executable 
 #              Invokes clang-format as a 
 #              pre-build step.
@@ -30,7 +30,7 @@ function(phi_add_executable PHI_TARGET)
 endfunction()
 
 ############################################
-# name: phi_add_library
+# Name       : phi_add_library
 # Description: Wrapper for add_library 
 #              Invokes clang-format as a 
 #              pre-build step.
@@ -62,3 +62,33 @@ function(phi_add_library PHI_TARGET)
     )
 endfunction()
 
+############################################
+# Name       : phi_add_gtest
+# Description: Wrapper for creating  
+#              A unit test target that uses gtest.
+#              Runs test as a post-build step.
+############################################
+
+function(phi_add_gtest TEST_TARGET)
+  cmake_parse_arguments(
+      PHI
+      ""
+      ""
+      "SOURCES"
+      ${ARGN}
+  )
+  phi_add_executable(${TEST_TARGET} SOURCES ${PHI_SOURCES})
+  target_link_libraries(${TEST_TARGET}  
+                              PRIVATE
+                              gmock_main 
+                              gtest
+                            )
+  add_custom_command(
+        TARGET ${TEST_TARGET}
+        POST_BUILD
+        COMMAND ${TEST_TARGET}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMENT "Running test target ${TEST_TARGET}"
+    )
+  gtest_discover_tests(${TEST_TARGET})
+endfunction()
