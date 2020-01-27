@@ -28,6 +28,11 @@ public:
 
 private:
     Microsoft::WRL::ComPtr<ID3D12Device> mDevice;
+    Microsoft::WRL::ComPtr<ID3D12Fence>  mFence;
+
+    uint32_t mCbvSrvDescriptorSize;
+    uint32_t mDsvDescriptorSize;
+    uint32_t mRtvDescriptorSize;
 };
 
 }  // namespace d3d12_sandbox
