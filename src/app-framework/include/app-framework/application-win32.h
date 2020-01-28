@@ -59,11 +59,10 @@ public:
 protected:
     int          mWidth;
     int          mHeight;
+    HWND         mHwnd;
     TCHAR const* mWindowTitle;
 
 private:
-    //! OS Specific
-    HWND      mHwnd;
     HINSTANCE mHinstance;
 };
 
