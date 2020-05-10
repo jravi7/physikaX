@@ -2,6 +2,8 @@
 #include <comdef.h>
 #include <iostream>
 
+#include <d3dx12.h>
+
 #include "d3d12-app.h"
 
 #define DEBUG_LAYER 1
@@ -29,7 +31,11 @@ void ErrorDescription(HRESULT hr)
 namespace d3d12_sandbox {
 
 D3D12App::D3D12App(TCHAR const* const title, int width, int height)
-    : physika::Application(title, width, height), mSwapChainBufferCount{ 2 }
+    : physika::Application(title, width, height),
+      mSwapChainBufferCount{ 2 },
+      mBackBufferFormat{ DXGI_FORMAT_R8G8B8A8_UNORM },
+      mCurrentBackBuffer{ 0 }
+
 {
 }
 
@@ -86,10 +92,17 @@ bool D3D12App::Initialize()
     if (!CreateCommandObjects()) {
         return false;
     }
+    std::cout << "Command objects successfully created." << std::endl;
 
     if (!CreateSwapChain()) {
         return false;
     }
+    std::cout << "Swap chain successfully created." << std::endl;
+
+    if (!CreateDescriptorHeaps()) {
+        return false;
+    }
+    std::cout << "Descriptor Heap created successfully" << std::endl;
 
     return true;
 }
@@ -179,6 +192,51 @@ bool D3D12App::CreateSwapChain()
     }
 
     return true;
+}
+
+bool D3D12App::CreateDescriptorHeaps()
+{
+    D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
+    rtvHeapDesc.NumDescriptors = mSwapChainBufferCount;
+    rtvHeapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+    rtvHeapDesc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    rtvHeapDesc.NodeMask       = 0;
+
+    HRESULT hr =
+        mDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&mRtvHeap));
+    if (FAILED(hr)) {
+        std::cout << "Failed to create Render Target Descriptor Heap"
+                  << std::endl;
+        return false;
+    }
+
+    D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc;
+    ;
+    dsvHeapDesc.NumDescriptors = 1;
+    dsvHeapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+    dsvHeapDesc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    dsvHeapDesc.NodeMask       = 0;
+
+    hr = mDevice->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&mDsvHeap));
+    if (FAILED(hr)) {
+        std::cout << "Failed to create Depth Stencil Descriptor Heap"
+                  << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE D3D12App::CurrentBackBufferView() const
+{
+    return CD3DX12_CPU_DESCRIPTOR_HANDLE(
+        mRtvHeap->GetCPUDescriptorHandleForHeapStart(), mCurrentBackBuffer,
+        mRtvDescriptorSize);
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE D3D12App::DepthStencilView() const
+{
+    return mDsvHeap->GetCPUDescriptorHandleForHeapStart();
 }
 
 void D3D12App::OnUpdate()

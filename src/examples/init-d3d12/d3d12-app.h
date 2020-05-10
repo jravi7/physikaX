@@ -9,7 +9,7 @@
 
 namespace d3d12_sandbox {
 
-using namespace Microsoft;
+using namespace Microsoft::WRL;
 
 using physika::Keycode;
 using physika::MouseButton;
@@ -33,24 +33,32 @@ private:
     bool EnumerateAdapters();
     bool CreateCommandObjects();
     bool CreateSwapChain();
+    bool CreateDescriptorHeaps();
+
+    D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView() const;
+    D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;
+
+    int mSwapChainBufferCount;
+    int mCurrentBackBuffer;
 
     uint32_t mCbvSrvDescriptorSize;
     uint32_t mDsvDescriptorSize;
     uint32_t mRtvDescriptorSize;
 
-    uint32_t mSwapChainBufferCount;
+    ComPtr<IDXGIFactory>   mFactory;
+    ComPtr<IDXGISwapChain> mSwapChain;
 
-    WRL::ComPtr<IDXGIFactory>   mFactory;
-    WRL::ComPtr<IDXGISwapChain> mSwapChain;
+    ComPtr<ID3D12Device>              mDevice;
+    ComPtr<ID3D12Fence>               mFence;
+    ComPtr<ID3D12CommandQueue>        mCommandQueue;
+    ComPtr<ID3D12CommandAllocator>    mCommandAllocator;
+    ComPtr<ID3D12GraphicsCommandList> mGraphicsCommandList;
+    ComPtr<ID3D12Debug>               mDebugController;
 
-    WRL::ComPtr<ID3D12Device>              mDevice;
-    WRL::ComPtr<ID3D12Fence>               mFence;
-    WRL::ComPtr<ID3D12CommandQueue>        mCommandQueue;
-    WRL::ComPtr<ID3D12CommandAllocator>    mCommandAllocator;
-    WRL::ComPtr<ID3D12GraphicsCommandList> mGraphicsCommandList;
-    WRL::ComPtr<ID3D12Debug>               mDebugController;
+    ComPtr<ID3D12DescriptorHeap> mRtvHeap;
+    ComPtr<ID3D12DescriptorHeap> mDsvHeap;
 
-    DXGI_FORMAT mBackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+    DXGI_FORMAT mBackBufferFormat;
 };
 
 }  // namespace d3d12_sandbox
