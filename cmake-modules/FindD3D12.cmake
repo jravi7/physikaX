@@ -33,6 +33,13 @@ find_path(D3D12_INCLUDE_DIR    # Set variable D3D12_INCLUDE_DIR
           HINTS
           )
 
+find_path(D3DX12_INCLUDE_DIR     # Set variable D3DX12_INCLUDE_DIR
+          d3dx12.h                # Find a path with d3dx12.h
+          HINTS "${CMAKE_SOURCE_DIR}/3rdParty/d3d12-helper"
+          DOC "Path to 3rdParty directory"
+          HINTS
+          )
+
 find_path(DXGI_INCLUDE_DIR    # Set variable DXGI_INCLUDE_DIR
           dxgi1_4.h           # Find a path with dxgi1_4.h
           HINTS "${WIN10_SDK_PATH}/Include/${WIN10_SDK_VERSION}/shared"
@@ -50,7 +57,7 @@ find_library(DXGI_LIBRARY NAMES dxgi.lib
 
 
 set(D3D12_LIBRARIES ${D3D12_LIBRARY} ${DXGI_LIBRARY})
-set(D3D12_INCLUDE_DIRS ${D3D12_INCLUDE_DIR} ${DXGI_INCLUDE_DIR})
+set(D3D12_INCLUDE_DIRS ${D3D12_INCLUDE_DIR} ${DXGI_INCLUDE_DIR} ${D3DX12_INCLUDE_DIR})
 
 
 include(FindPackageHandleStandardArgs)
