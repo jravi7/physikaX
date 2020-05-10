@@ -1,14 +1,19 @@
-#include <assert.h>
-#include <comdef.h>
-#include <iostream>
 
-#include <d3dx12.h>
 
 #include "d3d12-app.h"
+
+#include <assert.h>
+#include <comdef.h>
+#include <d3dx12.h>
+
+#include <iostream>
+
+#include "logger/logger.h"
 
 #define DEBUG_LAYER 1
 
 using namespace Microsoft;
+using namespace physika::logger;
 
 namespace {
 void ErrorDescription(HRESULT hr)
@@ -53,6 +58,7 @@ bool D3D12App::Initialize()
     //! Enabled D3D12 Debug Layer
 #if defined(DEBUG_LAYER)
     if (FAILED(D3D12GetDebugInterface(IID_PPV_ARGS(&mDebugController)))) {
+        LOG_WARN("Failed to load D3D12 Debug Layer.");
         mDebugController->EnableDebugLayer();
     }
 #endif
@@ -60,6 +66,7 @@ bool D3D12App::Initialize()
     //! Create graphics device
     if (FAILED(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_12_0,
                                  IID_PPV_ARGS(&mDevice)))) {
+        LOG_FATAL("Failed to create D3D12 device.");
         return false;
     }
 
@@ -71,11 +78,11 @@ bool D3D12App::Initialize()
     mCbvSrvDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(
         D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-    std::cout << "Graphics Device Initialized" << std::endl;
-    std::cout << "Descriptors count" << std::endl;
-    std::cout << "RTV Descriptors " << mRtvDescriptorSize << std::endl;
-    std::cout << "DSV Descriptors " << mDsvDescriptorSize << std::endl;
-    std::cout << "CBV/SRV Descriptors " << mCbvSrvDescriptorSize << std::endl;
+    LOG_INFO("Graphics Device Initialized.");
+    LOG_INFO("Descriptors count.");
+    LOG_INFO("RTV Descriptors. ");
+    LOG_INFO("DSV Descriptors. ");
+    LOG_INFO("CBV/SRV Descriptors. ");
 
     D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS qualityLevels;
     qualityLevels.Format      = mBackBufferFormat;
@@ -84,25 +91,24 @@ bool D3D12App::Initialize()
     if (!FAILED(mDevice->CheckFeatureSupport(
             D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &qualityLevels,
             sizeof(qualityLevels)))) {
-        std::cout << "MSAA Quality level: " << qualityLevels.NumQualityLevels
-                  << std::endl;
+        LOG_INFO("MSAA Quality level: %d", qualityLevels.NumQualityLevels);
     }
 
     //! Create CommandQueue and CommandAllocators
     if (!CreateCommandObjects()) {
         return false;
     }
-    std::cout << "Command objects successfully created." << std::endl;
+    LOG_INFO("Command objects successfully created.");
 
     if (!CreateSwapChain()) {
         return false;
     }
-    std::cout << "Swap chain successfully created." << std::endl;
+    LOG_INFO("Swap chain successfully created.");
 
     if (!CreateDescriptorHeaps()) {
         return false;
     }
-    std::cout << "Descriptor Heap created successfully" << std::endl;
+    LOG_INFO("Descriptor Heap created successfully");
 
     return true;
 }
@@ -119,7 +125,7 @@ bool D3D12App::EnumerateAdapters()
     IDXGIAdapter* pAdapter = nullptr;
     if (FAILED(CreateDXGIFactory(IID_PPV_ARGS(&mFactory)))) {
         assert(0 && "Failed to create a DXGI Factory instance");
-        std::cout << "Failed to create a DXGI Factory instance" << std::endl;
+        LOG_FATAL("Failed to create a DXGI Factory instance");
         return false;
     }
     for (uint32_t i = 0;
@@ -185,10 +191,11 @@ bool D3D12App::CreateSwapChain()
                                            &mSwapChain);
     if (FAILED(hr)) {
         ErrorDescription(hr);
-        std::cout << "Failed to create a DXGI SwapChain" << std::endl;
+        LOG_FATAL("Failed to create a DXGI SwapChain");
+
         return false;
     } else {
-        std::cout << "SwapChain initialized" << std::endl;
+        LOG_INFO("SwapChain initialized");
     }
 
     return true;
@@ -205,8 +212,7 @@ bool D3D12App::CreateDescriptorHeaps()
     HRESULT hr =
         mDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&mRtvHeap));
     if (FAILED(hr)) {
-        std::cout << "Failed to create Render Target Descriptor Heap"
-                  << std::endl;
+        LOG_FATAL("Failed to create Render Target Descriptor Heap");
         return false;
     }
 
@@ -219,8 +225,7 @@ bool D3D12App::CreateDescriptorHeaps()
 
     hr = mDevice->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&mDsvHeap));
     if (FAILED(hr)) {
-        std::cout << "Failed to create Depth Stencil Descriptor Heap"
-                  << std::endl;
+        LOG_FATAL("Failed to create Depth Stencil Descriptor Heap");
         return false;
     }
 

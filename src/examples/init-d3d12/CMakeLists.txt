@@ -9,7 +9,8 @@ phi_add_executable(${TARGET}
 
 # link to app-framework static library
 target_link_libraries(${TARGET} PRIVATE 
-                            app-framework 
+                            app-framework
+                            logger 
                             ${D3D12_LIBRARIES})
 
 # Add include dirs

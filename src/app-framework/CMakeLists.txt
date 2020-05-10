@@ -11,8 +11,8 @@ phi_add_library(${TARGET}
                 STATIC 
                 SOURCES ${SOURCES})
 
-target_include_directories(app-framework PUBLIC include)
-target_compile_definitions(app-framework PUBLIC WIN32_LEAN_AND_MEAN)
+target_include_directories(${TARGET} PUBLIC include)
+target_compile_definitions(${TARGET} PUBLIC WIN32_LEAN_AND_MEAN)
 
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:CONSOLE /ENTRY:mainCRTStartup")

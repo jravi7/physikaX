@@ -2,6 +2,7 @@
 
 #include <d3d12.h>
 #include <dxgi.h>
+#include <stdint.h>
 #include <wrl.h>
 
 #include "app-framework/application.h"
