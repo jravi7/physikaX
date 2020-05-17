@@ -19,10 +19,12 @@ def setup_argparser():
     @return: returns an argparser arg object
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--clean", help="Clean build.", action="store_true")
+    parser.add_argument(
+        "-c", "--clean", help="Clean build.", action="store_true")
     parser.add_argument("-b", "--build", help="Build project.", action="store_true",
                         default="store_true")
     return parser.parse_args()
+
 
 def main():
     """
@@ -30,12 +32,14 @@ def main():
     """
     args = setup_argparser()
     if args.clean:
-        shutil.rmtree("./_build/")
+        shutil.rmtree("./build/")
     elif args.build:
-        config_cmd = ["cmake.exe", ".", "-B./build", "-GVisual Studio 16 2019", "-Ax64"]
+        config_cmd = ["cmake.exe", ".", "-B./build",
+                      "-GVisual Studio 16 2019", "-Ax64"]
         subprocess.call(config_cmd)
         build_cmd = ["cmake.exe", "--build", "build"]
         subprocess.call(build_cmd)
+
 
 if __name__ == "__main__":
     main()
