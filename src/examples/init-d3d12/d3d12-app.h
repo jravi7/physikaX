@@ -31,10 +31,12 @@ public:
     void OnMouseWheel(int delta) override;
 
 private:
+    bool CreateGraphicsDevice();
     bool EnumerateAdapters();
     bool CreateCommandObjects();
     bool CreateSwapChain();
     bool CreateDescriptorHeaps();
+    void QueryDeviceProperties();
 
     D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView() const;
     D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;

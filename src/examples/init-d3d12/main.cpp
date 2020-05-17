@@ -1,17 +1,18 @@
 /**
-Apr 8, 2018
+May 17, 2020
 Jay R Ravi
 **/
 
 #include "d3d12-app.h"
 #include "logger/logger.h"
 
-using namespace d3d12_sandbox;
 using namespace physika::logger;
+using namespace d3d12_sandbox;
 
 int main()
 {
-    physika::logger::SetLoggingLevel(LogLevel::kInfo);
+    SetApplicationName("Init D3D12");
+    SetLoggingLevel(LogLevel::kInfo);
 
     D3D12App app(_T("Init D3D12"), 1920, 1080);
 

@@ -1,13 +1,11 @@
 
 
-#include "d3d12-app.h"
-
 #include <assert.h>
 #include <comdef.h>
 #include <d3dx12.h>
-
 #include <iostream>
 
+#include "d3d12-app.h"
 #include "logger/logger.h"
 
 #define DEBUG_LAYER 1
@@ -31,6 +29,15 @@ void ErrorDescription(HRESULT hr)
     } else
         _tprintf(TEXT("[Could not find a description for error # %#x.]\n"), hr);
 }
+
+void PrintHeader(char const* message)
+{
+    size_t const headerSize = strnlen(message, 1024);
+    std::string  decoration(headerSize, '-');
+    printf("%s\n", decoration.c_str());
+    printf("%s\n", message);
+    printf("%s\n", decoration.c_str());
+}
 }  // namespace
 
 namespace d3d12_sandbox {
@@ -50,65 +57,24 @@ bool D3D12App::Initialize()
         return false;
     }
 
-    //! Enumerate graphics devices
-    if (!EnumerateAdapters()) {
+    //! Initialize the Graphics Device
+    if (!CreateGraphicsDevice()) {
         return false;
     }
 
-    //! Enabled D3D12 Debug Layer
-#if defined(DEBUG_LAYER)
-    if (FAILED(D3D12GetDebugInterface(IID_PPV_ARGS(&mDebugController)))) {
-        LOG_WARN("Failed to load D3D12 Debug Layer.");
-        mDebugController->EnableDebugLayer();
-    }
-#endif
+    QueryDeviceProperties();
 
-    //! Create graphics device
-    if (FAILED(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_12_0,
-                                 IID_PPV_ARGS(&mDevice)))) {
-        LOG_FATAL("Failed to create D3D12 device.");
-        return false;
-    }
-
-    //! Get max descriptor count
-    mRtvDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(
-        D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-    mDsvDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(
-        D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-    mCbvSrvDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(
-        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-    LOG_INFO("Graphics Device Initialized.");
-    LOG_INFO("Descriptors count.");
-    LOG_INFO("RTV Descriptors. ");
-    LOG_INFO("DSV Descriptors. ");
-    LOG_INFO("CBV/SRV Descriptors. ");
-
-    D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS qualityLevels;
-    qualityLevels.Format      = mBackBufferFormat;
-    qualityLevels.SampleCount = 8;
-    qualityLevels.Flags       = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
-    if (!FAILED(mDevice->CheckFeatureSupport(
-            D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &qualityLevels,
-            sizeof(qualityLevels)))) {
-        LOG_INFO("MSAA Quality level: %d", qualityLevels.NumQualityLevels);
-    }
-
-    //! Create CommandQueue and CommandAllocators
     if (!CreateCommandObjects()) {
         return false;
     }
-    LOG_INFO("Command objects successfully created.");
 
     if (!CreateSwapChain()) {
         return false;
     }
-    LOG_INFO("Swap chain successfully created.");
 
     if (!CreateDescriptorHeaps()) {
         return false;
     }
-    LOG_INFO("Descriptor Heap created successfully");
 
     return true;
 }
@@ -138,8 +104,66 @@ bool D3D12App::EnumerateAdapters()
     return true;
 }
 
+bool D3D12App::CreateGraphicsDevice()
+{
+    PrintHeader("Setting up D3D12 Graphics Device");
+    //! Enumerate graphics devices
+    if (!EnumerateAdapters()) {
+        return false;
+    }
+
+    //! Enabled D3D12 Debug Layer
+#if defined(DEBUG_LAYER)
+    if (FAILED(D3D12GetDebugInterface(IID_PPV_ARGS(&mDebugController)))) {
+        LOG_WARN("Failed to load D3D12 Debug Layer.");
+        mDebugController->EnableDebugLayer();
+    }
+#endif
+
+    //! Create graphics device
+    if (FAILED(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_12_0,
+                                 IID_PPV_ARGS(&mDevice)))) {
+        LOG_FATAL("Failed to create D3D12 device.");
+        return false;
+    }
+
+    LOG_INFO("Graphics Device Initialized.");
+
+    return true;
+}
+
+void D3D12App::QueryDeviceProperties()
+{
+    PrintHeader("Querying device properties");
+    //! Get max descriptor count
+    mRtvDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(
+        D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    mDsvDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(
+        D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+    mCbvSrvDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(
+        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+    LOG_INFO("Maximum available RTV Descriptors: %d", mRtvDescriptorSize);
+    LOG_INFO("Maximum available DSV Descriptors: %d", mDsvDescriptorSize);
+    LOG_INFO("Maximum available CBV/SRV Descriptors: %d",
+             mCbvSrvDescriptorSize);
+
+    D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS qualityLevels;
+    qualityLevels.Format      = mBackBufferFormat;
+    qualityLevels.SampleCount = 8;
+    qualityLevels.Flags       = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
+    if (!FAILED(mDevice->CheckFeatureSupport(
+            D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &qualityLevels,
+            sizeof(qualityLevels)))) {
+        LOG_INFO("MSAA Quality level: %d", qualityLevels.NumQualityLevels);
+    }
+}
+
 bool D3D12App::CreateCommandObjects()
 {
+    PrintHeader(
+        "Initializing CommandQueue, CommandAllocator and Graphics Commandlist");
+
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Type                     = D3D12_COMMAND_LIST_TYPE_DIRECT;
     queueDesc.Flags                    = D3D12_COMMAND_QUEUE_FLAG_NONE;
@@ -160,11 +184,16 @@ bool D3D12App::CreateCommandObjects()
     }
 
     mGraphicsCommandList->Close();
+
+    LOG_INFO("Command objects successfully created.");
+
     return true;
 }
 
 bool D3D12App::CreateSwapChain()
 {
+    PrintHeader("Setting up SwapChain");
+
     mSwapChain.Reset();
     DXGI_SWAP_CHAIN_DESC swapChainDesc;
     // Back buffer description
@@ -192,17 +221,18 @@ bool D3D12App::CreateSwapChain()
     if (FAILED(hr)) {
         ErrorDescription(hr);
         LOG_FATAL("Failed to create a DXGI SwapChain");
-
         return false;
-    } else {
-        LOG_INFO("SwapChain initialized");
     }
+
+    LOG_INFO("Swap chain successfully created.");
 
     return true;
 }
 
 bool D3D12App::CreateDescriptorHeaps()
 {
+    PrintHeader("Setting up descriptor heaps");
+
     D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
     rtvHeapDesc.NumDescriptors = mSwapChainBufferCount;
     rtvHeapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
@@ -228,6 +258,8 @@ bool D3D12App::CreateDescriptorHeaps()
         LOG_FATAL("Failed to create Depth Stencil Descriptor Heap");
         return false;
     }
+
+    LOG_INFO("Descriptor Heap created successfully");
 
     return true;
 }
