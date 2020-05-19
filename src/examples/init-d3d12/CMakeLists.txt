@@ -11,6 +11,7 @@ phi_add_executable(${TARGET}
 target_link_libraries(${TARGET} PRIVATE 
                             app-framework
                             logger 
+                            timer
                             ${D3D12_LIBRARIES})
 
 # Add include dirs

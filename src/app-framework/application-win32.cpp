@@ -270,7 +270,7 @@ using namespace physika;
 
 ApplicationWin32::ApplicationWin32(TCHAR const* const title, int width,
                                    int height)
-    : mWindowTitle(title), mWidth(width), mHeight(height)
+    : mWindowTitle(title), mWidth(width), mHeight(height), mHinstance{nullptr}, mHwnd{nullptr}
 {
 }
 

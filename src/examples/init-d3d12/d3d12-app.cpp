@@ -84,6 +84,13 @@ bool D3D12App::Initialize()
         return false;
     }
 
+    if (!CreateDepthStencilBufferAndView()) {
+        return false;
+    }
+
+    mTimer.Reset(); 
+    mTimer.Start(); 
+
     return true;
 }
 bool D3D12App::Shutdown()
@@ -156,14 +163,14 @@ void D3D12App::QueryDeviceProperties()
     LOG_INFO("Maximum available CBV/SRV Descriptors: %d",
              mCbvSrvDescriptorSize);
 
-    D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS qualityLevels;
-    qualityLevels.Format      = mBackBufferFormat;
-    qualityLevels.SampleCount = 8;
-    qualityLevels.Flags       = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
+    mMSAAQualityLevels.Format      = mBackBufferFormat;
+    mMSAAQualityLevels.SampleCount = 4;
+    mMSAAQualityLevels.Flags       = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
+
     if (!FAILED(mDevice->CheckFeatureSupport(
-            D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &qualityLevels,
-            sizeof(qualityLevels)))) {
-        LOG_INFO("MSAA Quality level: %d", qualityLevels.NumQualityLevels);
+            D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &mMSAAQualityLevels,
+            sizeof(mMSAAQualityLevels)))) {
+        LOG_INFO("MSAA Quality level: %d", mMSAAQualityLevels.NumQualityLevels);
     }
 }
 
@@ -275,6 +282,7 @@ bool D3D12App::CreateDescriptorHeaps()
 bool D3D12App::CreateRenderTargetView()
 {
     PrintHeader("Setting up Render Target Views");
+
     for (int ii = 0; ii < mSwapChainBufferCount; ++ii) {
         if (FAILED(mSwapChain->GetBuffer(
                 ii, IID_PPV_ARGS(&mSwapChainBuffers[ii])))) {
@@ -288,6 +296,56 @@ bool D3D12App::CreateRenderTargetView()
                                         descriptorHandle);
     }
     LOG_INFO("Render Target Views successfully created");
+    return true;
+}
+
+bool D3D12App::CreateDepthStencilBufferAndView()
+{
+    PrintHeader("Setting up Depth/Stencil buffer and view");
+
+    CD3DX12_HEAP_PROPERTIES heapProperties{ D3D12_HEAP_TYPE_DEFAULT };
+
+    D3D12_RESOURCE_DESC desc;
+    desc.Dimension          = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    desc.Alignment          = 0;
+    desc.Width              = mWidth;
+    desc.Height             = mHeight;
+    desc.MipLevels          = 1;
+    desc.DepthOrArraySize   = 1;
+    desc.Format             = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    desc.SampleDesc.Count   = 1;
+    desc.SampleDesc.Quality = 0;
+    desc.Layout             = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    desc.Flags              = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+    D3D12_CLEAR_VALUE optClearValue;
+    optClearValue.DepthStencil = { 1.0f, 0 };
+    optClearValue.Format       = desc.Format;
+
+    //! Create Depth Stencil buffer
+    if (FAILED(mDevice->CreateCommittedResource(
+            &heapProperties, D3D12_HEAP_FLAG_NONE, &desc,
+            D3D12_RESOURCE_STATE_COMMON, &optClearValue,
+            IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())))) {
+        LOG_FATAL("Failed to create depth/stencil buffer");
+        return false;
+    }
+
+    //! Create a view for the buffer
+    mDevice->CreateDepthStencilView(mDepthStencilBuffer.Get(), nullptr,
+                                    DepthStencilView());
+
+    //! Transition depth buffer
+
+    CD3DX12_RESOURCE_BARRIER transitionBarrier =
+        CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
+                                             D3D12_RESOURCE_STATE_COMMON,
+                                             D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+    mGraphicsCommandList->ResourceBarrier(1, &transitionBarrier);
+
+    LOG_INFO("Successfully create depth/stencil buffer and view");
+
     return true;
 }
 
@@ -305,6 +363,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE D3D12App::DepthStencilView() const
 
 void D3D12App::OnUpdate()
 {
+    mTimer.Tick(); 
 }
 
 void D3D12App::OnResize(int /*width*/, int /*height*/)

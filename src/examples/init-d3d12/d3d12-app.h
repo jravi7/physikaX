@@ -8,6 +8,7 @@
 
 #include "app-framework/application.h"
 #include "app-framework/input.h"
+#include "timer/timer.h"
 
 namespace d3d12_sandbox {
 
@@ -39,9 +40,12 @@ private:
     bool CreateSwapChain();
     bool CreateDescriptorHeaps();
     bool CreateRenderTargetView();
+    bool CreateDepthStencilBufferAndView();
 
     D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView() const;
     D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;
+
+    physika::Timer mTimer;
 
     int mSwapChainBufferCount;
     int mCurrentBackBuffer;
@@ -54,6 +58,7 @@ private:
     ComPtr<IDXGIFactory>                mFactory;
     ComPtr<IDXGISwapChain>              mSwapChain;
     std::vector<ComPtr<ID3D12Resource>> mSwapChainBuffers;
+    ComPtr<ID3D12Resource>              mDepthStencilBuffer;
 
     ComPtr<ID3D12Device>              mDevice;
     ComPtr<ID3D12Fence>               mFence;
@@ -64,6 +69,10 @@ private:
 
     ComPtr<ID3D12DescriptorHeap> mRtvHeap;
     ComPtr<ID3D12DescriptorHeap> mDsvHeap;
+
+    D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS mMSAAQualityLevels;
+
+    
 };
 
 }  // namespace d3d12_sandbox
