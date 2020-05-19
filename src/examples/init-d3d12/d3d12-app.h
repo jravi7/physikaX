@@ -4,6 +4,7 @@
 #include <dxgi.h>
 #include <stdint.h>
 #include <wrl.h>
+#include <vector>
 
 #include "app-framework/application.h"
 #include "app-framework/input.h"
@@ -33,10 +34,11 @@ public:
 private:
     bool CreateGraphicsDevice();
     bool EnumerateAdapters();
+    void QueryDeviceProperties();
     bool CreateCommandObjects();
     bool CreateSwapChain();
     bool CreateDescriptorHeaps();
-    void QueryDeviceProperties();
+    bool CreateRenderTargetView();
 
     D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView() const;
     D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;
@@ -44,12 +46,14 @@ private:
     int mSwapChainBufferCount;
     int mCurrentBackBuffer;
 
-    uint32_t mCbvSrvDescriptorSize;
-    uint32_t mDsvDescriptorSize;
-    uint32_t mRtvDescriptorSize;
+    uint32_t    mCbvSrvDescriptorSize;
+    uint32_t    mDsvDescriptorSize;
+    uint32_t    mRtvDescriptorSize;
+    DXGI_FORMAT mBackBufferFormat;
 
-    ComPtr<IDXGIFactory>   mFactory;
-    ComPtr<IDXGISwapChain> mSwapChain;
+    ComPtr<IDXGIFactory>                mFactory;
+    ComPtr<IDXGISwapChain>              mSwapChain;
+    std::vector<ComPtr<ID3D12Resource>> mSwapChainBuffers;
 
     ComPtr<ID3D12Device>              mDevice;
     ComPtr<ID3D12Fence>               mFence;
@@ -60,8 +64,6 @@ private:
 
     ComPtr<ID3D12DescriptorHeap> mRtvHeap;
     ComPtr<ID3D12DescriptorHeap> mDsvHeap;
-
-    DXGI_FORMAT mBackBufferFormat;
 };
 
 }  // namespace d3d12_sandbox

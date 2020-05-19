@@ -38,17 +38,21 @@ void PrintHeader(char const* message)
     printf("%s\n", message);
     printf("%s\n", decoration.c_str());
 }
+
+int const kBackBufferCount = 2;
+
 }  // namespace
 
 namespace d3d12_sandbox {
 
 D3D12App::D3D12App(TCHAR const* const title, int width, int height)
     : physika::Application(title, width, height),
-      mSwapChainBufferCount{ 2 },
+      mSwapChainBufferCount{ kBackBufferCount },
       mBackBufferFormat{ DXGI_FORMAT_R8G8B8A8_UNORM },
       mCurrentBackBuffer{ 0 }
 
 {
+    mSwapChainBuffers.resize(mSwapChainBufferCount);
 }
 
 bool D3D12App::Initialize()
@@ -73,6 +77,10 @@ bool D3D12App::Initialize()
     }
 
     if (!CreateDescriptorHeaps()) {
+        return false;
+    }
+
+    if (!CreateRenderTargetView()) {
         return false;
     }
 
@@ -261,6 +269,25 @@ bool D3D12App::CreateDescriptorHeaps()
 
     LOG_INFO("Descriptor Heap created successfully");
 
+    return true;
+}
+
+bool D3D12App::CreateRenderTargetView()
+{
+    PrintHeader("Setting up Render Target Views");
+    for (int ii = 0; ii < mSwapChainBufferCount; ++ii) {
+        if (FAILED(mSwapChain->GetBuffer(
+                ii, IID_PPV_ARGS(&mSwapChainBuffers[ii])))) {
+            LOG_FATAL("Failed to get swapchain back buffer.");
+            return false;
+        }
+        auto descriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(
+            mRtvHeap->GetCPUDescriptorHandleForHeapStart(), ii,
+            mRtvDescriptorSize);
+        mDevice->CreateRenderTargetView(mSwapChainBuffers[ii].Get(), nullptr,
+                                        descriptorHandle);
+    }
+    LOG_INFO("Render Target Views successfully created");
     return true;
 }
 
