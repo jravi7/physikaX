@@ -1,11 +1,14 @@
 
 
+#include "d3d12-app.h"
+
+#include <DirectXColors.h>
 #include <assert.h>
 #include <comdef.h>
 #include <d3dx12.h>
+
 #include <iostream>
 
-#include "d3d12-app.h"
 #include "logger/logger.h"
 
 #define DEBUG_LAYER 1
@@ -49,10 +52,18 @@ D3D12App::D3D12App(TCHAR const* const title, int width, int height)
     : physika::Application(title, width, height),
       mSwapChainBufferCount{ kBackBufferCount },
       mBackBufferFormat{ DXGI_FORMAT_R8G8B8A8_UNORM },
-      mCurrentBackBuffer{ 0 }
+      mCurrentBackBuffer{ 0 },
+      mFenceValue{ 0 }
 
 {
     mSwapChainBuffers.resize(mSwapChainBufferCount);
+}
+
+D3D12App::~D3D12App()
+{
+    if (mDevice != nullptr) {
+        FlushCommandQueue();
+    }
 }
 
 bool D3D12App::Initialize()
@@ -72,6 +83,10 @@ bool D3D12App::Initialize()
         return false;
     }
 
+    if (!CreateFence()) {
+        return false;
+    }
+
     if (!CreateSwapChain()) {
         return false;
     }
@@ -88,8 +103,8 @@ bool D3D12App::Initialize()
         return false;
     }
 
-    mTimer.Reset(); 
-    mTimer.Start(); 
+    mTimer.Reset();
+    mTimer.Start();
 
     return true;
 }
@@ -135,7 +150,7 @@ bool D3D12App::CreateGraphicsDevice()
     }
 #endif
 
-    //! Create graphics device
+    //! Create graph ics device
     if (FAILED(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_12_0,
                                  IID_PPV_ARGS(&mDevice)))) {
         LOG_FATAL("Failed to create D3D12 device.");
@@ -202,6 +217,15 @@ bool D3D12App::CreateCommandObjects()
 
     LOG_INFO("Command objects successfully created.");
 
+    return true;
+}
+
+bool D3D12App::CreateFence()
+{
+    if (FAILED(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE,
+                                    IID_PPV_ARGS(&mFence)))) {
+        return false;
+    }
     return true;
 }
 
@@ -349,6 +373,23 @@ bool D3D12App::CreateDepthStencilBufferAndView()
     return true;
 }
 
+void D3D12App::SetDefaultViewportAndScissorRect()
+{
+    mViewport.TopLeftX = 0;
+    mViewport.TopLeftY = 0;
+    mViewport.Width    = static_cast<float>(mWidth);
+    mViewport.Height   = static_cast<float>(mHeight);
+    mViewport.MinDepth = 0.0f;
+    mViewport.MaxDepth = 1.0f;
+
+    mScissorRect = { 0, 0, mWidth, mHeight };
+}
+
+ID3D12Resource* D3D12App::CurrentBackBuffer() const
+{
+    return mSwapChainBuffers[mCurrentBackBuffer].Get();
+}
+
 D3D12_CPU_DESCRIPTOR_HANDLE D3D12App::CurrentBackBufferView() const
 {
     return CD3DX12_CPU_DESCRIPTOR_HANDLE(
@@ -361,9 +402,108 @@ D3D12_CPU_DESCRIPTOR_HANDLE D3D12App::DepthStencilView() const
     return mDsvHeap->GetCPUDescriptorHandleForHeapStart();
 }
 
+void D3D12App::CalculateFrameStatistics()
+{
+    static float timeElapsed = 0.0f;
+    static int   frameCount  = 0;
+    static int   framerate   = 0;
+
+    float const trackTimeInSeconds = 1.0f;
+    float const epsilon            = 0.001f;
+
+    mFrameTimes.push(mTimer.Delta());
+    timeElapsed += mFrameTimes.back();
+    if (timeElapsed > trackTimeInSeconds) {
+        framerate = frameCount;
+        // float avgFrameTime = timeElapsed / mFrameTimes.size();
+        timeElapsed -= mFrameTimes.front();
+        mFrameTimes.pop();
+        frameCount = 0;
+    }
+
+    frameCount++;
+
+    LOG_INFO("framerate: %d", framerate);
+}
+
+void D3D12App::FlushCommandQueue()
+{
+    mFenceValue++;
+
+    mCommandQueue->Signal(mFence.Get(), mFenceValue);
+
+    if (mFence->GetCompletedValue() < mFenceValue) {
+        HANDLE eventHandle =
+            CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+
+        auto hr = mFence->SetEventOnCompletion(mFenceValue, eventHandle);
+        assert(hr == S_OK);
+
+        WaitForSingleObject(eventHandle, INFINITE);
+        CloseHandle(eventHandle);
+    }
+}
+
 void D3D12App::OnUpdate()
 {
-    mTimer.Tick(); 
+    Update();
+    Draw();
+}
+
+void D3D12App::Update()
+{
+    CalculateFrameStatistics();
+    mTimer.Tick();
+}
+
+void D3D12App::Draw()
+{
+    if (FAILED(mCommandAllocator->Reset())) {
+        assert(0 && "Failed to reset command allocator");
+    }
+
+    assert(mGraphicsCommandList->Reset(mCommandAllocator.Get(), nullptr) ==
+               S_OK &&
+           "Failed to reset command list");
+
+    CD3DX12_RESOURCE_BARRIER transitionToRenderTargetState =
+        CD3DX12_RESOURCE_BARRIER::Transition(
+            CurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT,
+            D3D12_RESOURCE_STATE_RENDER_TARGET);
+    mGraphicsCommandList->ResourceBarrier(1, &transitionToRenderTargetState);
+
+    //! Set Viewport and ScissorRect
+    mGraphicsCommandList->RSSetViewports(1, &mViewport);
+    mGraphicsCommandList->RSSetScissorRects(1, &mScissorRect);
+
+    //! Clear back buffer and depth/stencil buffer
+    mGraphicsCommandList->ClearRenderTargetView(
+        CurrentBackBufferView(), DirectX::Colors::LightSteelBlue, 0, nullptr);
+    mGraphicsCommandList->ClearDepthStencilView(
+        DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
+        1.0f, 0, 0, nullptr);
+
+    auto renderTargetView = CurrentBackBufferView();
+    auto depthStencilView = DepthStencilView();
+    mGraphicsCommandList->OMSetRenderTargets(1, &renderTargetView, true,
+                                             &depthStencilView);
+
+    CD3DX12_RESOURCE_BARRIER transitionToPresentState =
+        CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+                                             D3D12_RESOURCE_STATE_RENDER_TARGET,
+                                             D3D12_RESOURCE_STATE_PRESENT);
+    mGraphicsCommandList->ResourceBarrier(1, &transitionToPresentState);
+
+    mGraphicsCommandList->Close();
+    ID3D12CommandList* commandLists[] = { mGraphicsCommandList.Get() };
+
+    mCommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
+
+    mSwapChain->Present(0, 0);
+
+    mCurrentBackBuffer = (mCurrentBackBuffer + 1) % mSwapChainBufferCount;
+
+    FlushCommandQueue();
 }
 
 void D3D12App::OnResize(int /*width*/, int /*height*/)

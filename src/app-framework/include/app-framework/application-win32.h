@@ -17,11 +17,11 @@ public:
 
     //! @brief Call this to initialize application.
     //! @return Bool value indicating success or failure
-    virtual bool Initialize();
+    bool Initialize();
 
     //! @brief Call this to shutdown application.
     //! @return Bool value indicating success or failure
-    virtual bool Shutdown();
+    bool Shutdown();
 
     //! @brief Call this to begin event loop.
     void Run();

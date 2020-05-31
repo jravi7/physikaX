@@ -4,6 +4,8 @@
 #include <dxgi.h>
 #include <stdint.h>
 #include <wrl.h>
+
+#include <queue>
 #include <vector>
 
 #include "app-framework/application.h"
@@ -21,8 +23,9 @@ class D3D12App : public physika::Application
 {
 public:
     D3D12App(TCHAR const* const title, int width, int height);
-    bool Initialize() override;
-    bool Shutdown() override;
+    ~D3D12App();
+    bool Initialize();
+    bool Shutdown();
     void OnUpdate() override;
     void OnResize(int width, int height) override;
     void OnKeyUp(Keycode key) override;
@@ -33,19 +36,29 @@ public:
     void OnMouseWheel(int delta) override;
 
 private:
-    bool CreateGraphicsDevice();
-    bool EnumerateAdapters();
-    void QueryDeviceProperties();
-    bool CreateCommandObjects();
-    bool CreateSwapChain();
-    bool CreateDescriptorHeaps();
-    bool CreateRenderTargetView();
-    bool CreateDepthStencilBufferAndView();
+    bool            CreateGraphicsDevice();
+    bool            EnumerateAdapters();
+    void            QueryDeviceProperties();
+    bool            CreateCommandObjects();
+    bool            CreateFence();
+    bool            CreateSwapChain();
+    bool            CreateDescriptorHeaps();
+    bool            CreateRenderTargetView();
+    bool            CreateDepthStencilBufferAndView();
+    void            CalculateFrameStatistics();
+    void            SetDefaultViewportAndScissorRect();
+    ID3D12Resource* CurrentBackBuffer() const;
+
+    void FlushCommandQueue();
+
+    void Update();
+    void Draw();
 
     D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView() const;
     D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;
 
-    physika::Timer mTimer;
+    physika::Timer    mTimer;
+    std::queue<float> mFrameTimes;
 
     int mSwapChainBufferCount;
     int mCurrentBackBuffer;
@@ -55,10 +68,15 @@ private:
     uint32_t    mRtvDescriptorSize;
     DXGI_FORMAT mBackBufferFormat;
 
+    D3D12_VIEWPORT mViewport;
+    D3D12_RECT     mScissorRect;
+
     ComPtr<IDXGIFactory>                mFactory;
     ComPtr<IDXGISwapChain>              mSwapChain;
     std::vector<ComPtr<ID3D12Resource>> mSwapChainBuffers;
     ComPtr<ID3D12Resource>              mDepthStencilBuffer;
+
+    uint64_t mFenceValue;
 
     ComPtr<ID3D12Device>              mDevice;
     ComPtr<ID3D12Fence>               mFence;
@@ -71,8 +89,6 @@ private:
     ComPtr<ID3D12DescriptorHeap> mDsvHeap;
 
     D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS mMSAAQualityLevels;
-
-    
 };
 
 }  // namespace d3d12_sandbox
