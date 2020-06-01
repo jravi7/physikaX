@@ -1,5 +1,6 @@
 
 #include "app-framework/application-win32.h"
+#include <assert.h>
 #include <stdio.h>
 #include <windows.h>
 
@@ -255,9 +256,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         height = HIWORD(lParam);
         sApp->OnResize(width, height);
         break;
-    case WM_DESTROY:
+    case WM_DESTROY: {
+        assert(DestroyWindow(hWnd) && "Failed to destroy window successfully");
         PostQuitMessage(0);
         break;
+    }
+
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
@@ -321,7 +325,8 @@ bool ApplicationWin32::Initialize()
 
 bool ApplicationWin32::Shutdown()
 {
-    return DestroyWindow(mHwnd);
+    //! Derived classes can add logic to control game shutdown sequence
+    return true;
 }
 
 void* ApplicationWin32::ApplicationHandle()
