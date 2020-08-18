@@ -1,16 +1,16 @@
 ﻿---
 BasedOnStyle: Google
 Language: Cpp
-AccessModifierOffset: '-4'
+AccessModifierOffset: "-4"
 AlignAfterOpenBracket: Align
-AlignConsecutiveAssignments: 'true'
-AlignConsecutiveDeclarations: 'true'
-AlignTrailingComments: 'true'
-AllowShortBlocksOnASingleLine: 'false'
-AllowShortCaseLabelsOnASingleLine: 'false'
+AlignConsecutiveAssignments: "true"
+AlignConsecutiveDeclarations: "true"
+AlignTrailingComments: "true"
+AllowShortBlocksOnASingleLine: "false"
+AllowShortCaseLabelsOnASingleLine: "false"
 AllowShortFunctionsOnASingleLine: None
-AllowShortIfStatementsOnASingleLine: 'false'
-AllowShortLoopsOnASingleLine: 'false'
+AllowShortIfStatementsOnASingleLine: "false"
+AllowShortLoopsOnASingleLine: "false"
 BreakBeforeBraces: Custom
 BraceWrapping:
     AfterClass: true
@@ -26,19 +26,18 @@ BraceWrapping:
     BeforeElse: false
     SplitEmptyFunction: true
     SplitEmptyRecord: true
-Cpp11BracedListStyle: 'false'
-IndentCaseLabels: 'false'
-IndentWidth: '4'
+Cpp11BracedListStyle: "false"
+IndentCaseLabels: "false"
+IndentWidth: "4"
 PointerAlignment: Left
-ReflowComments: 'true'
-SortIncludes: 'true'
-SpaceInEmptyParentheses: 'false'
-SpacesInAngles: 'false'
-SpacesInCStyleCastParentheses: 'false'
-SpacesInParentheses: 'false'
-SpacesInSquareBrackets: 'false'
+ReflowComments: "true"
+SortIncludes: "true"
+SpaceInEmptyParentheses: "false"
+SpacesInAngles: "false"
+SpacesInCStyleCastParentheses: "false"
+SpacesInParentheses: "false"
+SpacesInSquareBrackets: "false"
 Standard: Cpp11
-TabWidth: '4'
+TabWidth: "4"
 UseTab: Never
-
-...
+ColumnLimit: 0
