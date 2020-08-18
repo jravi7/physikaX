@@ -10,7 +10,7 @@ namespace {
 using namespace std;
 using namespace physika;
 
-float const kEpsilon = 0.01f;
+float const kEpsilon = 0.1f;
 
 TEST(TimerTest, InitializeTimer)
 {
