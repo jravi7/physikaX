@@ -36,32 +36,31 @@ public:
     void OnMouseWheel(int delta) override;
 
 private:
-    bool            CreateGraphicsDevice();
-    bool            EnumerateAdapters();
-    void            QueryDeviceProperties();
-    bool            CreateCommandObjects();
-    bool            CreateFence();
-    bool            CreateSwapChain();
-    bool            CreateDescriptorHeaps();
-    bool            CreateRenderTargetView();
-    bool            CreateDepthStencilBufferAndView();
-    void            CalculateFrameStatistics();
-    void            SetDefaultViewportAndScissorRect();
-    ID3D12Resource* CurrentBackBuffer() const;
+    bool CreateGraphicsDevice();
+    bool EnumerateAdapters();
+    void QueryDeviceProperties();
+    bool CreateCommandObjects();
+    bool CreateFence();
+    bool CreateSwapChain();
+    bool CreateDescriptorHeaps();
+    bool CreateRenderTargetView();
+    bool CreateDepthStencilBufferAndView();
+    void CalculateFrameStatistics();
+    void ResizeViewportAndScissorRect();
 
-    void FlushCommandQueue();
-
-    void Update();
-    void Draw();
-
+    ID3D12Resource*             CurrentBackBuffer() const;
     D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView() const;
     D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;
+
+    void FlushCommandQueue();
+    void Update();
+    void Draw();
 
     physika::Timer    mTimer;
     std::queue<float> mFrameTimes;
 
-    int mSwapChainBufferCount;
-    int mCurrentBackBuffer;
+    uint32_t mSwapChainBufferCount;
+    uint32_t mCurrentBackBuffer;
 
     uint32_t    mCbvSrvDescriptorSize;
     uint32_t    mDsvDescriptorSize;

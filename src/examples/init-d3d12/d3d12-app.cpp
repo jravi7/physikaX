@@ -9,6 +9,7 @@
 
 #include <iostream>
 
+#include "d3d12-util.h"
 #include "logger/logger.h"
 
 #define DEBUG_LAYER 1
@@ -17,21 +18,6 @@ using namespace Microsoft;
 using namespace physika::logger;
 
 namespace {
-void ErrorDescription(HRESULT hr)
-{
-    if (FACILITY_WINDOWS == HRESULT_FACILITY(hr))
-        hr = HRESULT_CODE(hr);
-    TCHAR* szErrMsg;
-
-    if (FormatMessage(
-            FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, NULL,
-            hr, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&szErrMsg, 0,
-            NULL) != 0) {
-        _tprintf(TEXT("%s"), szErrMsg);
-        LocalFree(szErrMsg);
-    } else
-        _tprintf(TEXT("[Could not find a description for error # %#x.]\n"), hr);
-}
 
 void PrintHeader(char const* message)
 {
@@ -43,7 +29,6 @@ void PrintHeader(char const* message)
 }
 
 int const kBackBufferCount = 2;
-
 }  // namespace
 
 namespace d3d12_sandbox {
@@ -120,7 +105,6 @@ bool D3D12App::EnumerateAdapters()
 {
     IDXGIAdapter* pAdapter = nullptr;
     if (FAILED(CreateDXGIFactory(IID_PPV_ARGS(&mFactory)))) {
-        assert(0 && "Failed to create a DXGI Factory instance");
         LOG_FATAL("Failed to create a DXGI Factory instance");
         return false;
     }
@@ -157,7 +141,7 @@ bool D3D12App::CreateGraphicsDevice()
         return false;
     }
 
-    LOG_INFO("Graphics Device Initialized.");
+    LOG_DEBUG("Graphics Device Initialized.");
 
     return true;
 }
@@ -173,10 +157,10 @@ void D3D12App::QueryDeviceProperties()
     mCbvSrvDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(
         D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-    LOG_INFO("Maximum available RTV Descriptors: %d", mRtvDescriptorSize);
-    LOG_INFO("Maximum available DSV Descriptors: %d", mDsvDescriptorSize);
-    LOG_INFO("Maximum available CBV/SRV Descriptors: %d",
-             mCbvSrvDescriptorSize);
+    LOG_DEBUG("Maximum available RTV Descriptors: %d", mRtvDescriptorSize);
+    LOG_DEBUG("Maximum available DSV Descriptors: %d", mDsvDescriptorSize);
+    LOG_DEBUG("Maximum available CBV/SRV Descriptors: %d",
+              mCbvSrvDescriptorSize);
 
     mMSAAQualityLevels.Format      = mBackBufferFormat;
     mMSAAQualityLevels.SampleCount = 4;
@@ -185,7 +169,8 @@ void D3D12App::QueryDeviceProperties()
     if (!FAILED(mDevice->CheckFeatureSupport(
             D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &mMSAAQualityLevels,
             sizeof(mMSAAQualityLevels)))) {
-        LOG_INFO("MSAA Quality level: %d", mMSAAQualityLevels.NumQualityLevels);
+        LOG_DEBUG("MSAA Quality level: %d",
+                  mMSAAQualityLevels.NumQualityLevels);
     }
 }
 
@@ -215,7 +200,7 @@ bool D3D12App::CreateCommandObjects()
 
     mGraphicsCommandList->Close();
 
-    LOG_INFO("Command objects successfully created.");
+    LOG_DEBUG("Command objects successfully created.");
 
     return true;
 }
@@ -241,7 +226,7 @@ bool D3D12App::CreateSwapChain()
     swapChainDesc.BufferDesc.Format                  = mBackBufferFormat;
     swapChainDesc.BufferDesc.RefreshRate.Numerator   = 60;
     swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
-    swapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+    swapChainDesc.BufferDesc.Scaling                 = DXGI_MODE_SCALING_UNSPECIFIED;
     swapChainDesc.BufferDesc.ScanlineOrdering =
         DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
     //! Sample Desc
@@ -258,12 +243,11 @@ bool D3D12App::CreateSwapChain()
     HRESULT hr = mFactory->CreateSwapChain(mCommandQueue.Get(), &swapChainDesc,
                                            &mSwapChain);
     if (FAILED(hr)) {
-        ErrorDescription(hr);
         LOG_FATAL("Failed to create a DXGI SwapChain");
         return false;
     }
 
-    LOG_INFO("Swap chain successfully created.");
+    LOG_DEBUG("Swap chain successfully created.");
 
     return true;
 }
@@ -298,7 +282,7 @@ bool D3D12App::CreateDescriptorHeaps()
         return false;
     }
 
-    LOG_INFO("Descriptor Heap created successfully");
+    LOG_DEBUG("Descriptor Heap created successfully");
 
     return true;
 }
@@ -307,7 +291,7 @@ bool D3D12App::CreateRenderTargetView()
 {
     PrintHeader("Setting up Render Target Views");
 
-    for (int ii = 0; ii < mSwapChainBufferCount; ++ii) {
+    for (uint32_t ii = 0; ii < mSwapChainBufferCount; ++ii) {
         if (FAILED(mSwapChain->GetBuffer(
                 ii, IID_PPV_ARGS(&mSwapChainBuffers[ii])))) {
             LOG_FATAL("Failed to get swapchain back buffer.");
@@ -319,7 +303,7 @@ bool D3D12App::CreateRenderTargetView()
         mDevice->CreateRenderTargetView(mSwapChainBuffers[ii].Get(), nullptr,
                                         descriptorHandle);
     }
-    LOG_INFO("Render Target Views successfully created");
+    LOG_DEBUG("Render Target Views successfully created");
     return true;
 }
 
@@ -368,12 +352,12 @@ bool D3D12App::CreateDepthStencilBufferAndView()
 
     mGraphicsCommandList->ResourceBarrier(1, &transitionBarrier);
 
-    LOG_INFO("Successfully create depth/stencil buffer and view");
+    LOG_DEBUG("Successfully create depth/stencil buffer and view");
 
     return true;
 }
 
-void D3D12App::SetDefaultViewportAndScissorRect()
+void D3D12App::ResizeViewportAndScissorRect()
 {
     mViewport.TopLeftX = 0;
     mViewport.TopLeftY = 0;
@@ -393,7 +377,8 @@ ID3D12Resource* D3D12App::CurrentBackBuffer() const
 D3D12_CPU_DESCRIPTOR_HANDLE D3D12App::CurrentBackBufferView() const
 {
     return CD3DX12_CPU_DESCRIPTOR_HANDLE(
-        mRtvHeap->GetCPUDescriptorHandleForHeapStart(), mCurrentBackBuffer,
+        mRtvHeap->GetCPUDescriptorHandleForHeapStart(),
+        mCurrentBackBuffer,
         mRtvDescriptorSize);
 }
 
@@ -422,22 +407,19 @@ void D3D12App::CalculateFrameStatistics()
     }
 
     frameCount++;
-
-    LOG_INFO("framerate: %d", framerate);
 }
 
 void D3D12App::FlushCommandQueue()
 {
     mFenceValue++;
-
-    mCommandQueue->Signal(mFence.Get(), mFenceValue);
+    LOG_DEBUG("Flushing command queue: %d", mFenceValue);
+    directx::ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mFenceValue));
 
     if (mFence->GetCompletedValue() < mFenceValue) {
-        HANDLE eventHandle =
-            CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+        LOG_DEBUG("Fence completed value: %d", mFence->GetCompletedValue());
+        HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
 
-        auto hr = mFence->SetEventOnCompletion(mFenceValue, eventHandle);
-        assert(hr == S_OK);
+        directx::ThrowIfFailed(mFence->SetEventOnCompletion(mFenceValue, eventHandle));
 
         WaitForSingleObject(eventHandle, INFINITE);
         CloseHandle(eventHandle);
@@ -458,13 +440,11 @@ void D3D12App::Update()
 
 void D3D12App::Draw()
 {
-    if (FAILED(mCommandAllocator->Reset())) {
-        assert(0 && "Failed to reset command allocator");
-    }
+    HRESULT hr = mCommandAllocator->Reset();
+    directx::ThrowIfFailed(hr);
 
-    assert(mGraphicsCommandList->Reset(mCommandAllocator.Get(), nullptr) ==
-               S_OK &&
-           "Failed to reset command list");
+    hr = mGraphicsCommandList->Reset(mCommandAllocator.Get(), nullptr);
+    directx::ThrowIfFailed(hr);
 
     CD3DX12_RESOURCE_BARRIER transitionToRenderTargetState =
         CD3DX12_RESOURCE_BARRIER::Transition(
@@ -477,16 +457,13 @@ void D3D12App::Draw()
     mGraphicsCommandList->RSSetScissorRects(1, &mScissorRect);
 
     //! Clear back buffer and depth/stencil buffer
-    mGraphicsCommandList->ClearRenderTargetView(
-        CurrentBackBufferView(), DirectX::Colors::LightSteelBlue, 0, nullptr);
-    mGraphicsCommandList->ClearDepthStencilView(
-        DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
-        1.0f, 0, 0, nullptr);
+    auto currentRTV = CurrentBackBufferView();
+    auto dsv        = DepthStencilView();
+    mGraphicsCommandList->ClearRenderTargetView(currentRTV, DirectX::Colors::LightSteelBlue, 0, nullptr);
+    mGraphicsCommandList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
+                                                1.0f, 0, 0, nullptr);
 
-    auto renderTargetView = CurrentBackBufferView();
-    auto depthStencilView = DepthStencilView();
-    mGraphicsCommandList->OMSetRenderTargets(1, &renderTargetView, true,
-                                             &depthStencilView);
+    mGraphicsCommandList->OMSetRenderTargets(1, &currentRTV, true, &dsv);
 
     CD3DX12_RESOURCE_BARRIER transitionToPresentState =
         CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
@@ -494,20 +471,69 @@ void D3D12App::Draw()
                                              D3D12_RESOURCE_STATE_PRESENT);
     mGraphicsCommandList->ResourceBarrier(1, &transitionToPresentState);
 
-    mGraphicsCommandList->Close();
-    ID3D12CommandList* commandLists[] = { mGraphicsCommandList.Get() };
+    directx::ThrowIfFailed(mGraphicsCommandList->Close());
 
+    ID3D12CommandList* commandLists[] = { mGraphicsCommandList.Get() };
     mCommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
 
-    mSwapChain->Present(0, 0);
-
+    directx::ThrowIfFailed(mSwapChain->Present(0, 0));
     mCurrentBackBuffer = (mCurrentBackBuffer + 1) % mSwapChainBufferCount;
 
     FlushCommandQueue();
 }
 
-void D3D12App::OnResize(int /*width*/, int /*height*/)
+void D3D12App::OnResize(int width, int height)
 {
+    if (!mDevice) {
+        return;
+    }
+    LOG_DEBUG("%d x %d", width, height);
+    //! Update client widt and height;
+    mWidth  = width;
+    mHeight = height;
+
+    //! Flush the gpu before modifying any resource
+    FlushCommandQueue();
+
+    //! Reset the command list to prepare resources
+    directx::ThrowIfFailed(mGraphicsCommandList->Reset(mCommandAllocator.Get(), nullptr));
+
+    //! Release previous swapchain resources
+    for (auto& backBuffer : mSwapChainBuffers) {
+        backBuffer.Reset();
+    }
+    mDepthStencilBuffer.Reset();
+
+    //! Resize swapchain back buffer size and format
+    mSwapChain->ResizeBuffers(mSwapChainBufferCount, mWidth, mHeight,
+                              mBackBufferFormat,
+                              DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH);
+
+    mCurrentBackBuffer = 0;
+
+    //! Recreate RenderTargetViews
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(
+        mRtvHeap->GetCPUDescriptorHandleForHeapStart());
+    for (uint32_t ii = 0; ii < mSwapChainBufferCount; ++ii) {
+        directx::ThrowIfFailed(
+            mSwapChain->GetBuffer(ii, IID_PPV_ARGS(&mSwapChainBuffers[ii])));
+        mDevice->CreateRenderTargetView(mSwapChainBuffers[ii].Get(), nullptr,
+                                        rtvHeapHandle);
+        rtvHeapHandle.Offset(ii, mRtvDescriptorSize);
+    }
+
+    //! Recreate depth stencil buffer and view
+    if (!CreateDepthStencilBufferAndView()) {
+        LOG_ERROR("Failed to recreate depth/stencil buffer view during resize");
+    }
+
+    directx::ThrowIfFailed(mGraphicsCommandList->Close());
+    ID3D12CommandList* commandLists[] = { mGraphicsCommandList.Get() };
+    mCommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
+
+    FlushCommandQueue();
+
+    ResizeViewportAndScissorRect();
 }
 
 void D3D12App::OnKeyUp(Keycode /*key*/)
