@@ -11,4 +11,6 @@ phi_add_executable(${TARGET}
 target_link_libraries(${TARGET} PRIVATE 
                             app-framework
                             logger
+                            ${D3D11_LIBRARIES}
                     )
+target_include_directories(${TARGET} PRIVATE ${D3D11_INCLUDE_DIRS})
