@@ -1,6 +1,6 @@
-#include <stdio.h>
-
 #include "example-app.h"
+
+#include <stdio.h>
 
 namespace example {
 

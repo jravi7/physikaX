@@ -19,6 +19,7 @@ endif()
 
 # 3rd Party
 find_package(gtest)
+find_package(glfw)
 
 # Root source directory
 add_subdirectory(src)
