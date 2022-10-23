@@ -34,7 +34,7 @@ void SetLoggingLevel(LogLevel level);
  *        with a specified log level and
  *        std printf formatting options
  *
- * @note Use the handy LOO_* functions which are
+ * @note Use the handy LOG_* functions which are
  *       clean and easy to use instead for most cases.
  *
  * @param level Specify a log level for this message
