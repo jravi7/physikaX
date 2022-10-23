@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.22)
 
 project(PhysikaX)
 
@@ -20,6 +20,7 @@ endif()
 # 3rd Party
 find_package(gtest)
 find_package(glfw)
+find_package(D3D11)
 
 # Root source directory
 add_subdirectory(src)

@@ -1,5 +1,7 @@
 
 #include "app-framework/application-win32.h"
+
+#include <assert.h>
 #include <stdio.h>
 #include <windows.h>
 
@@ -255,9 +257,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         height = HIWORD(lParam);
         sApp->OnResize(width, height);
         break;
-    case WM_DESTROY:
+    case WM_DESTROY: {
+        assert(DestroyWindow(hWnd) && "Failed to destroy window successfully");
         PostQuitMessage(0);
         break;
+    }
+
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
@@ -270,7 +275,11 @@ using namespace physika;
 
 ApplicationWin32::ApplicationWin32(TCHAR const* const title, int width,
                                    int height)
-    : mWindowTitle(title), mWidth(width), mHeight(height)
+    : mWindowTitle(title),
+      mWindowWidth(width),
+      mWindowHeight(height),
+      mHinstance{ nullptr },
+      mHwnd{ nullptr }
 {
 }
 
@@ -301,8 +310,8 @@ bool ApplicationWin32::Initialize()
     }
 
     mHwnd = CreateWindow(szWindowClass, mWindowTitle, WS_OVERLAPPEDWINDOW,
-                         CW_USEDEFAULT, CW_USEDEFAULT, mWidth, mHeight, NULL,
-                         NULL, mHinstance, NULL);
+                         CW_USEDEFAULT, CW_USEDEFAULT, mWindowWidth,
+                         mWindowHeight, NULL, NULL, mHinstance, NULL);
 
     if (!mHwnd) {
         MessageBox(NULL, _T("Window Creation failed"), _T("Error"), NULL);
@@ -317,7 +326,18 @@ bool ApplicationWin32::Initialize()
 
 bool ApplicationWin32::Shutdown()
 {
-    return DestroyWindow(mHwnd);
+    //! Derived classes can add logic to control game shutdown sequence
+    return true;
+}
+
+void* ApplicationWin32::ApplicationHandle()
+{
+    return mHinstance;
+}
+
+void* ApplicationWin32::WindowHandle()
+{
+    return mHwnd;
 }
 
 void ApplicationWin32::Run()

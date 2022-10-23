@@ -50,13 +50,19 @@ public:
     //! @brief Override this to handle mouse wheel rotation event.
     virtual void OnMouseWheel(int delta);
 
-private:
-    int          mWidth;
-    int          mHeight;
+    //! @brief Returns App Handle as a void*
+    void* ApplicationHandle();
+
+    //! @brief Returns window handle as a void*
+    void* WindowHandle();
+
+protected:
+    int          mWindowWidth;
+    int          mWindowHeight;
+    HWND         mHwnd;
     TCHAR const* mWindowTitle;
 
-    //! OS Specific
-    HWND      mHwnd;
+private:
     HINSTANCE mHinstance;
 };
 

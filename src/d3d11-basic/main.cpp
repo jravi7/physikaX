@@ -1,15 +1,12 @@
-/**
-Apr 8, 2018
-Jay R Ravi
-**/
 
 #include <stdio.h>
 
-#include "example-app.h"
+#include "d3d11-basic.h"
+#include "logger/logger.h"
 
 int main()
 {
-    example::ExampleApp app(_T("Physika App Framework"), 1024, 768);
+    sample::D3D11Basic app(_T("D3D11 Basic"), 1920, 1080);
 
     if (!app.Initialize()) {
         printf("Could not initialize app. Exiting");
