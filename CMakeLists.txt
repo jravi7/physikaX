@@ -20,6 +20,7 @@ endif()
 # 3rd Party
 find_package(gtest)
 find_package(glfw)
+find_package(D3D12)
 find_package(D3D11)
 
 # Root source directory
