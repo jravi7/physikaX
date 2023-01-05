@@ -35,16 +35,14 @@ public:
     void OnMouseWheel(int delta) override;
 
 private:
-    bool InitializeDeviceFactory();
-    bool InitializeGraphicsDevice();
-    bool InitializeSwapChain();
+    bool InitializeDeviceObjects();
     bool InitializeCommandObjects();
-    bool InitializeFenceObjects();
+    bool InitializeSwapChain();
+    bool InitializeSyncObjects();
 
     bool CreateDescriptorHeaps();
     bool CreateRenderTargetView();
     bool CreateDepthStencilBufferAndView();
-    // void CalculateFrameStatistics();
     void ResizeViewportAndScissorRect();
 
     void FlushCommandQueue();
@@ -65,6 +63,7 @@ private:
     WRL::ComPtr<ID3D12Debug1>              mD3D12DebugController;
     WRL::ComPtr<ID3D12DescriptorHeap>      mRtvHeap;
     WRL::ComPtr<ID3D12DescriptorHeap>      mDsvHeap;
+    WRL::ComPtr<ID3D12DescriptorHeap>      mSRVHeap;
 
     //! Window surface objects
     WRL::ComPtr<IDXGISwapChain>              mSwapChain;
@@ -76,6 +75,7 @@ private:
 
     //! Sync Variables
     uint64_t                 mFenceValue;
+    HANDLE                   mFenceEventHandle;
     WRL::ComPtr<ID3D12Fence> mFence;
 };
 

@@ -80,13 +80,8 @@ bool D3D12Basic::Initialize()
 
     logger::SetApplicationName("D3D12 Basic");
     PrintHeader("Initializing...");
-    if (!InitializeDeviceFactory()) {
-        logger::LOG_FATAL("Failed to create a DXGI Factory object");
-        return false;
-    }
-
-    if (!InitializeGraphicsDevice()) {
-        logger::LOG_FATAL("Failed to create a D3D12 Device");
+    if (!InitializeDeviceObjects()) {
+        logger::LOG_FATAL("Failed to create device objects");
         return false;
     }
 
@@ -100,7 +95,7 @@ bool D3D12Basic::Initialize()
         return false;
     }
 
-    if (!InitializeFenceObjects()) {
+    if (!InitializeSyncObjects()) {
         logger::LOG_FATAL("Failed to create a Fence");
     }
 
@@ -122,7 +117,7 @@ bool D3D12Basic::Initialize()
     return true;
 }
 
-bool D3D12Basic::InitializeDeviceFactory()
+bool D3D12Basic::InitializeDeviceObjects()
 {
     UINT dxgiCreateFlags = 0;
 #ifdef _DEBUG
@@ -140,11 +135,7 @@ bool D3D12Basic::InitializeDeviceFactory()
         logger::LOG_ERROR("Failed to a create DXGI Factory object.");
         return false;
     }
-    return true;
-}
 
-bool D3D12Basic::InitializeGraphicsDevice()
-{
     logger::LOG_INFO("Enumerating Adapters and Initializing Graphics Device");
     bool foundDevice = false;
     for (UINT ii = 0; mDXGIFactory->EnumAdapters1(ii, &mDXGIAdapter) != DXGI_ERROR_NOT_FOUND;
@@ -322,7 +313,7 @@ bool D3D12Basic::CreateDepthStencilBufferAndView()
 
     //! Create Depth Stencil buffer
     if (FAILED(mD3D12Device->CreateCommittedResource(
-            &heapProperties, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COMMON,
+            &heapProperties, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_DEPTH_WRITE,
             &optClearValue, IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())))) {
         logger::LOG_FATAL("Failed to create depth/stencil buffer");
         return false;
@@ -331,13 +322,6 @@ bool D3D12Basic::CreateDepthStencilBufferAndView()
     //! Create a view for the buffer
     mD3D12Device->CreateDepthStencilView(mDepthStencilBuffer.Get(), nullptr,
                                          mDsvHeap->GetCPUDescriptorHandleForHeapStart());
-
-    //! Transition depth buffer
-
-    CD3DX12_RESOURCE_BARRIER transitionBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
-        mDepthStencilBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
-    mGraphicsCommandList->ResourceBarrier(1, &transitionBarrier);
 
     logger::LOG_DEBUG("Successfully created depth/stencil buffer and view");
 
@@ -356,9 +340,14 @@ void D3D12Basic::ResizeViewportAndScissorRect()
     mScissorRect = { 0, 0, mWindowWidth, mWindowHeight };
 }
 
-bool D3D12Basic::InitializeFenceObjects()
+bool D3D12Basic::InitializeSyncObjects()
 {
     if (FAILED(mD3D12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)))) {
+        return false;
+    }
+    mFenceEventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+    if (!mFenceEventHandle) {
+        logger::LOG_FATAL("Failed to create a fence handle");
         return false;
     }
     return true;
@@ -366,6 +355,11 @@ bool D3D12Basic::InitializeFenceObjects()
 
 bool D3D12Basic::Shutdown()
 {
+    FlushCommandQueue();
+    if (CloseHandle(mFenceEventHandle)) {
+        logger::LOG_ERROR("Failed to close event handle on shutdown");
+        return false;
+    }
     if (!physika::Application::Shutdown()) {
         return false;
     }
@@ -433,12 +427,9 @@ void D3D12Basic::FlushCommandQueue()
 
     if (mFence->GetCompletedValue() < mFenceValue) {
         logger::LOG_DEBUG("Fence completed value: %d", mFence->GetCompletedValue());
-        HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
 
-        ThrowIfFailed(mFence->SetEventOnCompletion(mFenceValue, eventHandle));
-
-        WaitForSingleObject(eventHandle, INFINITE);
-        CloseHandle(eventHandle);
+        ThrowIfFailed(mFence->SetEventOnCompletion(mFenceValue, mFenceEventHandle));
+        WaitForSingleObject(mFenceEventHandle, INFINITE);
     }
 }
 
