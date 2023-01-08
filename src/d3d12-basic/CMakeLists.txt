@@ -5,7 +5,12 @@ phi_add_executable(${TARGET}
                     SOURCES 
                         main.cpp
                         d3d12-basic.h
-                        d3d12-basic.cpp)
+                        d3d12-basic.cpp
+                        vertex-data.h
+                        primitive-generator.h
+                        primitive-generator.cpp
+                        
+)
 
 # link to app-framework static library
 target_link_libraries(${TARGET} PRIVATE 
