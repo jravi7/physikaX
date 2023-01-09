@@ -34,7 +34,7 @@ std::tuple<D3D12ResourcePtr, D3D12ResourcePtr> CreateDefaultBuffer(
     auto const& bufferDesc            = CD3DX12_RESOURCE_DESC::Buffer(byteSize);
 
     ThrowIfFailed(pDevice->CreateCommittedResource(
-        &defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &bufferDesc, D3D12_RESOURCE_STATE_COPY_DEST,
+        &defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &bufferDesc, D3D12_RESOURCE_STATE_COMMON,
         nullptr, IID_PPV_ARGS(gpuBuffer.GetAddressOf())));
     //! Resources created in a D3D12_HEAP_TYPE_UPLOAD heap must be created with
     //! D3D12_RESOURCE_STATE_GENERIC_READ and cannot be changed away from this.
@@ -48,14 +48,18 @@ std::tuple<D3D12ResourcePtr, D3D12ResourcePtr> CreateDefaultBuffer(
     subresourceData.RowPitch   = byteSize;
     subresourceData.SlicePitch = byteSize;
 
+    auto const& barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+        gpuBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
+    pCmdList->ResourceBarrier(1, &barrier);
+
     // Issue copy
     UpdateSubresources<1>(pCmdList.Get(), gpuBuffer.Get(), uploadBuffer.Get(), 0, 0, 1,
                           &subresourceData);
 
     // Transition to generic read state
-    auto const& barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+    auto const& barrier2 = CD3DX12_RESOURCE_BARRIER::Transition(
         gpuBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
-    pCmdList->ResourceBarrier(1, &barrier);
+    pCmdList->ResourceBarrier(1, &barrier2);
 
     return { gpuBuffer, uploadBuffer };
 }

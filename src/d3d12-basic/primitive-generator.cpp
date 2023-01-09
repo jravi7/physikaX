@@ -31,8 +31,8 @@ void CreateEquilateralTriangle(float const side, VertexData* vertices, uint32_t*
         return;
     }
 
-    vertices[0] = { XMFLOAT3(side * 0.5f, side * 0.5f, 0.0f), XMFLOAT4(Colors::Blue) };
-    vertices[1] = { XMFLOAT3(-0 * 0.5f, side * 0.5f, 0.0f), XMFLOAT4(Colors::Green) };
+    vertices[0] = { XMFLOAT3(side * 0.5f, -side * 0.5f, 0.0f), XMFLOAT4(Colors::Blue) };
+    vertices[1] = { XMFLOAT3(0, side * 0.5f, 0.0f), XMFLOAT4(Colors::Green) };
     vertices[2] = { XMFLOAT3(-side * 0.5f, -side * 0.5f, 0.0f), XMFLOAT4(Colors::Red) };
 
     indices[0] = 0;

@@ -1,14 +1,16 @@
 #include "d3d12-basic.h"
 
 #include <DirectXColors.h>
-#include <comdef.h>  // _com_error
 #include <d3dx12.h>
 #include <stdio.h>
 
-#include <exception>
 #include <string>
 
+#include "d3d12-util.h"
+#include "d3dcompiler.h"
 #include "logger/logger.h"
+#include "primitive-generator.h"
+#include "vertex-data.h"
 
 namespace {
 
@@ -21,19 +23,24 @@ void PrintHeader(char const* message)
     printf("%s\n", decoration.c_str());
 }
 
-char const* HRErrorDescription(HRESULT hr)
-{
-    _com_error err(hr);
-    return err.ErrorMessage();
-}
-
-inline void ThrowIfFailed(HRESULT hr)
-{
-    if (FAILED(hr)) {
-        physika::logger::LOG_ERROR("%s", HRErrorDescription(hr));
-        throw std::exception();
-    }
-}
+char const* sShaderSource =
+    "struct PSInput\
+    { \
+    float4 position : SV_POSITION;\
+    float4 color : COLOR; \
+    };  \
+    PSInput VSMain(float4 position : POSITION, float4 color : COLOR) \
+    {\
+       PSInput result;             \
+       result.position = position; \
+       result.color    = color;    \
+       return result;              \
+    }\
+    \
+    float4 PSMain(PSInput input) : SV_TARGET \
+    {\
+    return input.color;\
+    }";
 
 }  // namespace
 
@@ -113,6 +120,20 @@ bool D3D12Basic::Initialize()
         logger::LOG_FATAL("Failed to create a DepthStencil Buffer and View");
         return false;
     }
+
+    //! Prepare commandlist for resource loading.
+
+    InitializePSOs();
+    mCommandAllocator->Reset();
+    mGraphicsCommandList->Reset(mCommandAllocator.Get(), nullptr);
+    InitializeResources();
+
+    mGraphicsCommandList->Close();
+    ID3D12CommandList* commandLists[] = { mGraphicsCommandList.Get() };
+    mCommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
+    FlushCommandQueue();
+
+    ResizeViewportAndScissorRect();
 
     return true;
 }
@@ -353,6 +374,93 @@ bool D3D12Basic::InitializeSyncObjects()
     return true;
 }
 
+void D3D12Basic::InitializeResources()
+{
+    //! Initialize Mesh - Vertex and Index Buffers;
+    mMeshBuffers = std::make_unique<d3d12_util::Mesh>();
+
+    std::vector<VertexData> vertices;
+    std::vector<uint32_t>   indices;
+    uint32_t                vertexCount = 0;
+    uint32_t                indexCount  = 0;
+    primitive_gen::CreateEquilateralTriangle(1, nullptr, &vertexCount, nullptr, &indexCount);
+    vertices.resize(vertexCount);
+    indices.resize(indexCount);
+    primitive_gen::CreateEquilateralTriangle(1, vertices.data(), &vertexCount, indices.data(),
+                                             &indexCount);
+
+    std::tie(mMeshBuffers->vertexBufferGPU, mMeshBuffers->vertexBufferUploadHeap) =
+        d3d12_util::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList, vertices.data(),
+                                        vertices.size() * sizeof(VertexData));
+
+    std::tie(mMeshBuffers->indexBufferGPU, mMeshBuffers->indexBufferUploadHeap) =
+        d3d12_util::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList, indices.data(),
+                                        indices.size() * sizeof(uint32_t));
+
+    mMeshBuffers->vertexBufferByteSize = (uint32_t)vertices.size() * sizeof(VertexData);
+    mMeshBuffers->vertexByteStride     = sizeof(VertexData);
+    mMeshBuffers->indexFormat          = DXGI_FORMAT_R32_UINT;
+    mMeshBuffers->indexBufferByteSize  = (uint32_t)indices.size() * sizeof(uint32_t);
+}
+
+void D3D12Basic::InitializePSOs()
+{
+    CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+    rootSignatureDesc.Init(0, nullptr, 0, nullptr,
+                           D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+    WRL::ComPtr<ID3DBlob> signature;
+    WRL::ComPtr<ID3DBlob> error;
+    d3d12_util::ThrowIfFailed(D3D12SerializeRootSignature(
+        &rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+    d3d12_util::ThrowIfFailed(mD3D12Device->CreateRootSignature(0, signature->GetBufferPointer(),
+                                                                signature->GetBufferSize(),
+                                                                IID_PPV_ARGS(&mRootSignature)));
+
+    WRL::ComPtr<ID3DBlob> vsByteCode = nullptr;
+    WRL::ComPtr<ID3DBlob> psByteCode = nullptr;
+    WRL::ComPtr<ID3DBlob> errors;
+    HRESULT hr = D3DCompileFromFile(L"C:\\shaders.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", 0, 0,
+                                    &vsByteCode, &errors);
+
+    if (errors != nullptr)
+        OutputDebugStringA((char*)errors->GetBufferPointer());
+    d3d12_util::ThrowIfFailed(hr);
+
+    hr = D3DCompileFromFile(L"C:\\shaders.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", 0, 0,
+                            &psByteCode, &errors);
+    if (errors != nullptr)
+        OutputDebugStringA((char*)errors->GetBufferPointer());
+    d3d12_util::ThrowIfFailed(hr);
+
+    D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
+          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12,
+          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+    };
+
+    // Describe and create the graphics pipeline state object (PSO).
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+    psoDesc.InputLayout                        = { inputElementDescs, _countof(inputElementDescs) };
+    psoDesc.pRootSignature                     = mRootSignature.Get();
+    psoDesc.VS                                 = CD3DX12_SHADER_BYTECODE(vsByteCode.Get());
+    psoDesc.PS                                 = CD3DX12_SHADER_BYTECODE(psByteCode.Get());
+    auto rasterState                           = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    rasterState.FrontCounterClockwise          = true;
+    psoDesc.RasterizerState                    = rasterState;
+    psoDesc.BlendState                         = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+    psoDesc.DepthStencilState.DepthEnable      = FALSE;
+    psoDesc.DepthStencilState.StencilEnable    = FALSE;
+    psoDesc.SampleMask                         = UINT_MAX;
+    psoDesc.PrimitiveTopologyType              = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    psoDesc.NumRenderTargets                   = mSwapChainBufferCount;
+    psoDesc.RTVFormats[0]                      = DXGI_FORMAT_R8G8B8A8_UNORM;
+    psoDesc.SampleDesc.Count                   = 1;
+    d3d12_util::ThrowIfFailed(
+        mD3D12Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&mPipelineState)));
+}
+
 bool D3D12Basic::Shutdown()
 {
     FlushCommandQueue();
@@ -377,43 +485,55 @@ void D3D12Basic::Update()
 
 void D3D12Basic::Draw()
 {
-    ThrowIfFailed(mCommandAllocator->Reset());
+    d3d12_util::ThrowIfFailed(mCommandAllocator->Reset());
 
-    ThrowIfFailed(mGraphicsCommandList->Reset(mCommandAllocator.Get(), nullptr));
+    d3d12_util::ThrowIfFailed(
+        mGraphicsCommandList->Reset(mCommandAllocator.Get(), mPipelineState.Get()));
 
     auto currentBackBuffer = mSwapChainBackBuffers[mCurrentBackBuffer].Get();
 
     CD3DX12_RESOURCE_BARRIER transitionToRenderTargetState = CD3DX12_RESOURCE_BARRIER::Transition(
         currentBackBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     mGraphicsCommandList->ResourceBarrier(1, &transitionToRenderTargetState);
-
-    //! Set Viewport and ScissorRect
-    mGraphicsCommandList->RSSetViewports(1, &mViewport);
-    mGraphicsCommandList->RSSetScissorRects(1, &mScissorRect);
-
-    //! Clear back buffer and depth/stencil buffer
     auto rtvDescriptorSize =
         mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     auto currentRTV = CD3DX12_CPU_DESCRIPTOR_HANDLE(mRtvHeap->GetCPUDescriptorHandleForHeapStart(),
                                                     mCurrentBackBuffer, rtvDescriptorSize);
     auto dsv        = mDsvHeap->GetCPUDescriptorHandleForHeapStart();
-    mGraphicsCommandList->ClearRenderTargetView(currentRTV, DirectX::Colors::LightSteelBlue, 0,
-                                                nullptr);
+    mGraphicsCommandList->OMSetRenderTargets(1, &currentRTV, true, &dsv);
+    //! Set Viewport and ScissorRect
+    mGraphicsCommandList->RSSetViewports(1, &mViewport);
+    mGraphicsCommandList->RSSetScissorRects(1, &mScissorRect);
+
+    //! Clear back buffer and depth/stencil buffer
+    auto const& clearColor = DirectX::XMVECTORF32({ 0.2f, 0.2f, 0.2f, 1.0f });
+    mGraphicsCommandList->ClearRenderTargetView(currentRTV, clearColor, 0, nullptr);
     mGraphicsCommandList->ClearDepthStencilView(
         dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
-    mGraphicsCommandList->OMSetRenderTargets(1, &currentRTV, true, &dsv);
+    mGraphicsCommandList->SetGraphicsRootSignature(mRootSignature.Get());
+    mGraphicsCommandList->SetPipelineState(mPipelineState.Get());
+    auto const& ibView = mMeshBuffers->IndexBufferView();
+    auto const& vbView = mMeshBuffers->VertexBufferView();
+    mGraphicsCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    mGraphicsCommandList->IASetIndexBuffer(&ibView);
+    mGraphicsCommandList->IASetVertexBuffers(0, 1, &vbView);
+
+    // mGraphicsCommandList->DrawInstanced(3, 1, 0, 0);
+
+    mGraphicsCommandList->DrawIndexedInstanced(3, 1, 0, 0, 0);
 
     CD3DX12_RESOURCE_BARRIER transitionToPresentState = CD3DX12_RESOURCE_BARRIER::Transition(
         currentBackBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     mGraphicsCommandList->ResourceBarrier(1, &transitionToPresentState);
 
-    ThrowIfFailed(mGraphicsCommandList->Close());
+    d3d12_util::ThrowIfFailed(mGraphicsCommandList->Close());
 
     ID3D12CommandList* commandLists[] = { mGraphicsCommandList.Get() };
     mCommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
 
-    ThrowIfFailed(mSwapChain->Present(0, 0));
+    d3d12_util::ThrowIfFailed(mSwapChain->Present(0, 0));
     mCurrentBackBuffer = (mCurrentBackBuffer + 1) % mSwapChainBufferCount;
 
     FlushCommandQueue();
@@ -423,12 +543,12 @@ void D3D12Basic::FlushCommandQueue()
 {
     mFenceValue++;
     logger::LOG_DEBUG("Flushing command queue: %d", mFenceValue);
-    ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mFenceValue));
+    d3d12_util::ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mFenceValue));
 
     if (mFence->GetCompletedValue() < mFenceValue) {
         logger::LOG_DEBUG("Fence completed value: %d", mFence->GetCompletedValue());
 
-        ThrowIfFailed(mFence->SetEventOnCompletion(mFenceValue, mFenceEventHandle));
+        d3d12_util::ThrowIfFailed(mFence->SetEventOnCompletion(mFenceValue, mFenceEventHandle));
         WaitForSingleObject(mFenceEventHandle, INFINITE);
     }
 }
@@ -447,7 +567,7 @@ void D3D12Basic::OnResize(int width, int height)
     FlushCommandQueue();
 
     //! Reset the command list to prepare resources
-    ThrowIfFailed(mGraphicsCommandList->Reset(mCommandAllocator.Get(), nullptr));
+    d3d12_util::ThrowIfFailed(mGraphicsCommandList->Reset(mCommandAllocator.Get(), nullptr));
 
     //! Release previous swapchain resources
     for (auto& backBuffer : mSwapChainBackBuffers) {
@@ -466,7 +586,8 @@ void D3D12Basic::OnResize(int width, int height)
         mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
     for (uint32_t ii = 0; ii < mSwapChainBufferCount; ++ii) {
-        ThrowIfFailed(mSwapChain->GetBuffer(ii, IID_PPV_ARGS(&mSwapChainBackBuffers[ii])));
+        d3d12_util::ThrowIfFailed(
+            mSwapChain->GetBuffer(ii, IID_PPV_ARGS(&mSwapChainBackBuffers[ii])));
         mD3D12Device->CreateRenderTargetView(mSwapChainBackBuffers[ii].Get(), nullptr,
                                              rtvHeapHandle);
         rtvHeapHandle.Offset(ii, rtvDescriptorSize);
@@ -477,7 +598,7 @@ void D3D12Basic::OnResize(int width, int height)
         logger::LOG_ERROR("Failed to recreate depth/stencil buffer view during resize");
     }
 
-    ThrowIfFailed(mGraphicsCommandList->Close());
+    d3d12_util::ThrowIfFailed(mGraphicsCommandList->Close());
     ID3D12CommandList* commandLists[] = { mGraphicsCommandList.Get() };
     mCommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
 

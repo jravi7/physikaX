@@ -5,10 +5,12 @@
 #include <stdint.h>      // uint32_t
 #include <wrl/client.h>  // ComPtr
 
+#include <memory>  // unique_ptr
 #include <vector>
 
 #include "app-framework/application.h"
 #include "app-framework/input.h"
+#include "d3d12-util.h"
 
 namespace sample {
 
@@ -45,6 +47,10 @@ private:
     bool CreateDepthStencilBufferAndView();
     void ResizeViewportAndScissorRect();
 
+    // Resources
+    void InitializeResources();
+    void InitializePSOs();
+
     void FlushCommandQueue();
     void Update();
     void Draw();
@@ -77,6 +83,11 @@ private:
     uint64_t                 mFenceValue;
     HANDLE                   mFenceEventHandle;
     WRL::ComPtr<ID3D12Fence> mFence;
+
+    //! Resources
+    std::unique_ptr<physika::d3d12_util::Mesh> mMeshBuffers;
+    WRL::ComPtr<ID3D12PipelineState>           mPipelineState;
+    WRL::ComPtr<ID3D12RootSignature>           mRootSignature;
 };
 
 }  // namespace sample
