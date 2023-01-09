@@ -88,8 +88,7 @@ bool D3D11Basic::EnumerateAdapters()
         logger::LOG_FATAL("Failed to create a DXGI Factory instance");
         return false;
     }
-    for (uint32_t i = 0;
-         mFactory->EnumAdapters(i, &pAdapter) != DXGI_ERROR_NOT_FOUND; ++i) {
+    for (uint32_t i = 0; mFactory->EnumAdapters(i, &pAdapter) != DXGI_ERROR_NOT_FOUND; ++i) {
         DXGI_ADAPTER_DESC desc{};
         pAdapter->GetDesc(&desc);
 
@@ -105,9 +104,8 @@ bool D3D11Basic::CreateGraphicsDevice()
     PrintHeader("Setting up D3D11 Device");
 
     const D3D_FEATURE_LEVEL featureLevels = D3D_FEATURE_LEVEL_11_1;
-    HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
-                                   0, &featureLevels, 1, D3D11_SDK_VERSION,
-                                   mDevice.ReleaseAndGetAddressOf(), nullptr,
+    HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, &featureLevels, 1,
+                                   D3D11_SDK_VERSION, mDevice.ReleaseAndGetAddressOf(), nullptr,
                                    mDeviceContext.ReleaseAndGetAddressOf());
 
     if (FAILED(hr)) {
@@ -115,8 +113,7 @@ bool D3D11Basic::CreateGraphicsDevice()
         return false;
     }
 
-    logger::LOG_DEBUG(
-        "D3D11 Device and Device Context created successfully created.");
+    logger::LOG_DEBUG("D3D11 Device and Device Context created successfully created.");
 
     return true;
 }
@@ -133,9 +130,8 @@ bool D3D11Basic::CreateSwapChain()
     swapChainDesc.BufferDesc.Format                  = mBackBufferFormat;
     swapChainDesc.BufferDesc.RefreshRate.Numerator   = 60;
     swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
-    swapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-    swapChainDesc.BufferDesc.ScanlineOrdering =
-        DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+    swapChainDesc.BufferDesc.Scaling                 = DXGI_MODE_SCALING_UNSPECIFIED;
+    swapChainDesc.BufferDesc.ScanlineOrdering        = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
     //! Sample Desc
     swapChainDesc.SampleDesc.Count   = 1;
     swapChainDesc.SampleDesc.Quality = 0;
@@ -147,8 +143,7 @@ bool D3D11Basic::CreateSwapChain()
     swapChainDesc.BufferUsage  = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     swapChainDesc.Flags        = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
-    HRESULT hr =
-        mFactory->CreateSwapChain(mDevice.Get(), &swapChainDesc, &mSwapChain);
+    HRESULT hr = mFactory->CreateSwapChain(mDevice.Get(), &swapChainDesc, &mSwapChain);
     if (FAILED(hr)) {
         logger::LOG_FATAL("Failed to create a DXGI SwapChain");
         return false;
@@ -169,8 +164,8 @@ bool D3D11Basic::CreateRenderTargetView()
         return false;
     }
 
-    hr = mDevice->CreateRenderTargetView(
-        pBackBuffer.Get(), nullptr, mRenderTargetView.ReleaseAndGetAddressOf());
+    hr = mDevice->CreateRenderTargetView(pBackBuffer.Get(), nullptr,
+                                         mRenderTargetView.ReleaseAndGetAddressOf());
     if (FAILED(hr)) {
         logger::LOG_FATAL("Failed to create render target view.");
         return false;
@@ -207,9 +202,8 @@ bool D3D11Basic::CreateDepthStencilView()
     viewDesc.Texture2D.MipSlice = 0;
     viewDesc.Format             = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
-    hr = mDevice->CreateDepthStencilView(
-        mDepthStencilBuffer.Get(), &viewDesc,
-        mDepthStencilView.ReleaseAndGetAddressOf());
+    hr = mDevice->CreateDepthStencilView(mDepthStencilBuffer.Get(), &viewDesc,
+                                         mDepthStencilView.ReleaseAndGetAddressOf());
 
     if (FAILED(hr)) {
         logger::LOG_FATAL("Failed to create depth stencil view.");
@@ -245,8 +239,8 @@ bool D3D11Basic::CreateDepthStencilState()
     depthStencilDesc.BackFace.StencilPassOp      = D3D11_STENCIL_OP_KEEP;
     depthStencilDesc.BackFace.StencilFunc        = D3D11_COMPARISON_ALWAYS;
 
-    auto hr = mDevice->CreateDepthStencilState(
-        &depthStencilDesc, mDepthStencilState.ReleaseAndGetAddressOf());
+    auto hr = mDevice->CreateDepthStencilState(&depthStencilDesc,
+                                               mDepthStencilState.ReleaseAndGetAddressOf());
     if (FAILED(hr)) {
         logger::LOG_FATAL("Failed to create depth stencil state.");
         return false;
@@ -274,8 +268,7 @@ bool D3D11Basic::SetupRasterStateAndViewport()
     rasterDesc.SlopeScaledDepthBias  = 0.0f;
 
     // Create the rasterizer state from the description we just filled out.
-    auto hr = mDevice->CreateRasterizerState(
-        &rasterDesc, mRasterState.ReleaseAndGetAddressOf());
+    auto hr = mDevice->CreateRasterizerState(&rasterDesc, mRasterState.ReleaseAndGetAddressOf());
     if (FAILED(hr)) {
         logger::LOG_FATAL("Failed to create rasterizer state.");
         return false;
@@ -315,8 +308,7 @@ void D3D11Basic::Render()
     mDeviceContext->ClearRenderTargetView(mRenderTargetView.Get(), color);
 
     // Clear the depth buffer.
-    mDeviceContext->ClearDepthStencilView(mDepthStencilView.Get(),
-                                          D3D11_CLEAR_DEPTH, 1.0f, 0);
+    mDeviceContext->ClearDepthStencilView(mDepthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 
     mSwapChain->Present(0, 0);
 }

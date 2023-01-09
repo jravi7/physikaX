@@ -273,8 +273,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 using namespace physika;
 
-ApplicationWin32::ApplicationWin32(TCHAR const* const title, int width,
-                                   int height)
+ApplicationWin32::ApplicationWin32(TCHAR const* const title, int width, int height)
     : mWindowTitle(title),
       mWindowWidth(width),
       mWindowHeight(height),
@@ -304,14 +303,12 @@ bool ApplicationWin32::Initialize()
     wcex.hIconSm       = nullptr;
 
     if (!RegisterClassEx(&wcex)) {
-        MessageBox(NULL, _T("Call to RegisterClassEx failed"), _T("Error"),
-                   NULL);
+        MessageBox(NULL, _T("Call to RegisterClassEx failed"), _T("Error"), NULL);
         return false;
     }
 
-    mHwnd = CreateWindow(szWindowClass, mWindowTitle, WS_OVERLAPPEDWINDOW,
-                         CW_USEDEFAULT, CW_USEDEFAULT, mWindowWidth,
-                         mWindowHeight, NULL, NULL, mHinstance, NULL);
+    mHwnd = CreateWindow(szWindowClass, mWindowTitle, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT,
+                         CW_USEDEFAULT, mWindowWidth, mWindowHeight, NULL, NULL, mHinstance, NULL);
 
     if (!mHwnd) {
         MessageBox(NULL, _T("Window Creation failed"), _T("Error"), NULL);
