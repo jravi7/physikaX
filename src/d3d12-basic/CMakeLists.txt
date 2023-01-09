@@ -9,7 +9,8 @@ phi_add_executable(${TARGET}
                         vertex-data.h
                         primitive-generator.h
                         primitive-generator.cpp
-                        
+                        d3d12-util.h
+                        d3d12-util.cpp
 )
 
 # link to app-framework static library
