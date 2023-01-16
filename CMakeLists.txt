@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.22)
 
 project(PhysikaX)
+# Set C++ standard to 2017
+# Ref: https://matgomes.com/setting-cpp-standard-cmake/
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED On)
+set(CMAKE_CXX_EXTENSIONS Off)
 
 set(CMAKE_BINARY_DIR ${CMAKE_SOURCE_DIR}/_output)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -9,7 +14,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake-modules)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-include(phi-scripts)
+include(common-helpers)
 
 # Warning Settings
 if (MSVC)
