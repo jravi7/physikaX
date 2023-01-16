@@ -4,6 +4,7 @@
 #include <d3dx12.h>
 #include <stdio.h>
 
+#include <filesystem>
 #include <string>
 
 #include "d3d12-util.h"
@@ -23,24 +24,13 @@ void PrintHeader(char const* message)
     printf("%s\n", decoration.c_str());
 }
 
-char const* sShaderSource =
-    "struct PSInput\
-    { \
-    float4 position : SV_POSITION;\
-    float4 color : COLOR; \
-    };  \
-    PSInput VSMain(float4 position : POSITION, float4 color : COLOR) \
-    {\
-       PSInput result;             \
-       result.position = position; \
-       result.color    = color;    \
-       return result;              \
-    }\
-    \
-    float4 PSMain(PSInput input) : SV_TARGET \
-    {\
-    return input.color;\
-    }";
+std::filesystem::path GetCurrentExeFullPath()
+{
+    int const kMaxPath         = 1024;
+    char      buffer[kMaxPath] = { '\0' };
+    GetModuleFileNameA(nullptr, buffer, kMaxPath - 1);
+    return std::filesystem::path(buffer).parent_path();
+}
 
 }  // namespace
 
@@ -86,6 +76,7 @@ bool D3D12Basic::Initialize()
     }
 
     logger::SetApplicationName("D3D12 Basic");
+    logger::SetLoggingLevel(logger::LogLevel::kInfo);
     PrintHeader("Initializing...");
     if (!InitializeDeviceObjects()) {
         logger::LOG_FATAL("Failed to create device objects");
@@ -420,15 +411,17 @@ void D3D12Basic::InitializePSOs()
     WRL::ComPtr<ID3DBlob> vsByteCode = nullptr;
     WRL::ComPtr<ID3DBlob> psByteCode = nullptr;
     WRL::ComPtr<ID3DBlob> errors;
-    HRESULT hr = D3DCompileFromFile(L"C:\\shaders.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", 0, 0,
-                                    &vsByteCode, &errors);
+    auto const            shaderPath = GetCurrentExeFullPath() / "shaders.hlsl";
+
+    HRESULT hr = D3DCompileFromFile(shaderPath.wstring().c_str(), nullptr, nullptr, "VSMain",
+                                    "vs_5_0", 0, 0, &vsByteCode, &errors);
 
     if (errors != nullptr)
         OutputDebugStringA((char*)errors->GetBufferPointer());
     d3d12_util::ThrowIfFailed(hr);
 
-    hr = D3DCompileFromFile(L"C:\\shaders.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", 0, 0,
-                            &psByteCode, &errors);
+    hr = D3DCompileFromFile(shaderPath.wstring().c_str(), nullptr, nullptr, "PSMain", "ps_5_0", 0,
+                            0, &psByteCode, &errors);
     if (errors != nullptr)
         OutputDebugStringA((char*)errors->GetBufferPointer());
     d3d12_util::ThrowIfFailed(hr);

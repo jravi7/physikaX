@@ -11,6 +11,8 @@ phi_add_executable(${TARGET}
                         primitive-generator.cpp
                         d3d12-util.h
                         d3d12-util.cpp
+                    SHADERS
+                        shaders.hlsl
 )
 
 # link to app-framework static library
