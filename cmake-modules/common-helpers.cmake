@@ -1,3 +1,26 @@
+function(phi_add_asset_to_target PHI_TARGET)
+    cmake_parse_arguments(
+        PHI
+        ""
+        ""
+        "ASSETS"
+        ${ARGN}
+    )
+
+    SET(ASSET_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/assets)
+    
+    foreach(ASSET_FILE ${PHI_ASSETS})
+        add_custom_command(TARGET ${PHI_TARGET}
+            POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${ASSET_FILE} $<TARGET_FILE_DIR:${PHI_TARGET}>
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            COMMENT "Copying asset ${ASSET_FILE}"
+        )    
+    endforeach()
+    
+    
+endfunction()
+
 ############################################
 # name: phi_add_exectuable
 # Description: Wrapper for add_executable 
@@ -9,7 +32,7 @@ function(phi_add_executable PHI_TARGET)
         PHI
         "WIN32"
         ""
-        "SOURCES"
+        "SOURCES;SHADERS"
         ${ARGN}
     )
     
@@ -17,6 +40,11 @@ function(phi_add_executable PHI_TARGET)
         add_executable(${PHI_TARGET} WIN32 ${PHI_SOURCES} ${PHI_UNPARSED_ARGUMENTS})
     else()
         add_executable(${PHI_TARGET} ${PHI_SOURCES} ${PHI_UNPARSED_ARGUMENTS})
+    endif()
+
+
+    if (PHI_SHADERS)
+        phi_add_asset_to_target(${PHI_TARGET} ASSETS ${PHI_SHADERS})
     endif()
 
     # Run clang-format as pre-build event.    
