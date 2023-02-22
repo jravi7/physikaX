@@ -9,8 +9,6 @@ phi_add_executable(${TARGET}
                         vertex-data.h
                         primitive-generator.h
                         primitive-generator.cpp
-                        d3d12-util.h
-                        d3d12-util.cpp
                     SHADERS
                         shaders.hlsl
 )
@@ -19,6 +17,7 @@ phi_add_executable(${TARGET}
 target_link_libraries(${TARGET} PRIVATE 
                             app-framework
                             logger
+                            d3d12-common
                             ${D3D12_LIBRARIES}
                     )
 target_include_directories(${TARGET} PRIVATE ${D3D12_INCLUDE_DIRS})
