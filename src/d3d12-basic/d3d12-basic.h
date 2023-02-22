@@ -2,21 +2,21 @@
 
 #include <d3d12.h>
 #include <dxgi1_3.h>
-#include <stdint.h>      // uint32_t
-#include <wrl/client.h>  // ComPtr
+#include <stdint.h>  // uint32_t
 
 #include <memory>  // unique_ptr
 #include <vector>
 
 #include "app-framework/application.h"
 #include "app-framework/input.h"
-#include "d3d12-util.h"
+#include "d3d12-common/d3d12-common.h"
+#include "d3d12-common/d3d12-helpers.h"
 
 namespace sample {
 
 using physika::Keycode;
 using physika::MouseButton;
-using namespace Microsoft;
+namespace d3d12 = physika::d3d12_common;
 
 class D3D12Basic : public physika::Application
 {
@@ -60,34 +60,34 @@ private:
     DXGI_FORMAT mBackBufferFormat;
 
     // Device Objects
-    WRL::ComPtr<ID3D12Device>              mD3D12Device;
-    WRL::ComPtr<IDXGIFactory1>             mDXGIFactory;
-    WRL::ComPtr<IDXGIAdapter1>             mDXGIAdapter;
-    WRL::ComPtr<ID3D12CommandQueue>        mCommandQueue;
-    WRL::ComPtr<ID3D12GraphicsCommandList> mGraphicsCommandList;
-    WRL::ComPtr<ID3D12CommandAllocator>    mCommandAllocator;
-    WRL::ComPtr<ID3D12Debug1>              mD3D12DebugController;
-    WRL::ComPtr<ID3D12DescriptorHeap>      mRtvHeap;
-    WRL::ComPtr<ID3D12DescriptorHeap>      mDsvHeap;
-    WRL::ComPtr<ID3D12DescriptorHeap>      mSRVHeap;
+    d3d12::ID3D12DevicePtr              mD3D12Device;
+    d3d12::IDXGIFactory1Ptr             mDXGIFactory;
+    d3d12::IDXGIAdapter1Ptr             mDXGIAdapter;
+    d3d12::ID3D12CommandQueuePtr        mCommandQueue;
+    d3d12::ID3D12GraphicsCommandListPtr mGraphicsCommandList;
+    d3d12::ID3D12CommandAllocatorPtr    mCommandAllocator;
+    d3d12::ID3D12Debug1Ptr              mD3D12DebugController;
+    d3d12::ID3D12DescriptorHeapPtr      mRtvHeap;
+    d3d12::ID3D12DescriptorHeapPtr      mDsvHeap;
+    d3d12::ID3D12DescriptorHeapPtr      mSRVHeap;
 
     //! Window surface objects
-    WRL::ComPtr<IDXGISwapChain>              mSwapChain;
-    std::vector<WRL::ComPtr<ID3D12Resource>> mSwapChainBackBuffers;
-    WRL::ComPtr<ID3D12Resource>              mDepthStencilBuffer;
+    d3d12::IDXGISwapChainPtr              mSwapChain;
+    std::vector<d3d12::ID3D12ResourcePtr> mSwapChainBackBuffers;
+    d3d12::ID3D12ResourcePtr              mDepthStencilBuffer;
 
     D3D12_VIEWPORT mViewport;
     D3D12_RECT     mScissorRect;
 
     //! Sync Variables
-    uint64_t                 mFenceValue;
-    HANDLE                   mFenceEventHandle;
-    WRL::ComPtr<ID3D12Fence> mFence;
+    uint64_t              mFenceValue;
+    HANDLE                mFenceEventHandle;
+    d3d12::ID3D12FencePtr mFence;
 
     //! Resources
-    std::unique_ptr<physika::d3d12_util::Mesh> mMeshBuffers;
-    WRL::ComPtr<ID3D12PipelineState>           mPipelineState;
-    WRL::ComPtr<ID3D12RootSignature>           mRootSignature;
+    std::unique_ptr<d3d12::Mesh>  mMeshBuffers;
+    d3d12::ID3D12PipelineStatePtr mPipelineState;
+    d3d12::ID3D12RootSignaturePtr mRootSignature;
 };
 
 }  // namespace sample
