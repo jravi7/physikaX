@@ -1,18 +1,25 @@
+#include <comdef.h>
 #include <d3d12.h>
 #include <dxgi1_3.h>
-#include <comdef.h>
+#include <wrl/client.h>  // ComPtr
 
-namespace dx12{
-#define SMART_COMPTR_DECL(interface) _COM_SMARTPTR_TYPEDEF(interface,__uuidof(interface))
+namespace physika::d3d12_common {
+#define DEFINE_SMART_COMPTR(interface) using interface##Ptr = Microsoft::WRL::ComPtr<interface>;
 
-SMART_COMPTR_DECL(ID3D12Device);
-SMART_COMPTR_DECL(IDXGIFactory1);
-SMART_COMPTR_DECL(IDXGIAdapter1);
-SMART_COMPTR_DECL(ID3D12CommandQueue);
-SMART_COMPTR_DECL(ID3D12GraphicsCommandList);
-SMART_COMPTR_DECL(ID3D12CommandAllocator);
-SMART_COMPTR_DECL(ID3D12Debug1);
-SMART_COMPTR_DECL(ID3D12DescriptorHeap);
-SMART_COMPTR_DECL(ID3D12Resource);
+DEFINE_SMART_COMPTR(ID3D12Device)
+DEFINE_SMART_COMPTR(IDXGIFactory1)
+DEFINE_SMART_COMPTR(IDXGIAdapter1)
+DEFINE_SMART_COMPTR(ID3D12CommandQueue)
+DEFINE_SMART_COMPTR(ID3D12GraphicsCommandList)
+DEFINE_SMART_COMPTR(ID3D12CommandAllocator)
+DEFINE_SMART_COMPTR(ID3D12Debug1)
+DEFINE_SMART_COMPTR(ID3D12DescriptorHeap)
+DEFINE_SMART_COMPTR(ID3D12Resource)
+DEFINE_SMART_COMPTR(IDXGISwapChain)
+DEFINE_SMART_COMPTR(ID3D12PipelineState)
+DEFINE_SMART_COMPTR(ID3D12RootSignature)
+DEFINE_SMART_COMPTR(ID3D12Fence)
+DEFINE_SMART_COMPTR(ID3D12Debug)
+DEFINE_SMART_COMPTR(ID3DBlob)
 
-}
+}  // namespace physika::d3d12_common
