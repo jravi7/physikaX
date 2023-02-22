@@ -72,5 +72,31 @@ DefaultGPUBuffer CreateDefaultBuffer(ID3D12DevicePtr pDevice, ID3D12GraphicsComm
     return { gpuBuffer, uploadBuffer };
 }
 
+OutputBuffer CreateOutputBuffer(ID3D12DevicePtr pDevice, uint64_t const byteSize)
+{
+    if (!pDevice || byteSize == 0) {
+        return { nullptr, nullptr };
+    }
+
+    ID3D12ResourcePtr gpuBuffer    = nullptr;
+    ID3D12ResourcePtr uploadBuffer = nullptr;
+
+    auto const& defaultHeapProperties  = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+    auto const& readbackHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
+    auto const& bufferDesc             = CD3DX12_RESOURCE_DESC::Buffer(byteSize);
+
+    ThrowIfFailed(pDevice->CreateCommittedResource(
+        &defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &bufferDesc, D3D12_RESOURCE_STATE_COMMON,
+        nullptr, IID_PPV_ARGS(gpuBuffer.GetAddressOf())));
+
+    //! Resources in this heap must be created with D3D12_RESOURCE_STATE_COPY_DEST, and cannot be
+    //! changed away from this.
+    ThrowIfFailed(pDevice->CreateCommittedResource(
+        &readbackHeapProperties, D3D12_HEAP_FLAG_NONE, &bufferDesc, D3D12_RESOURCE_STATE_COPY_DEST,
+        nullptr, IID_PPV_ARGS(uploadBuffer.GetAddressOf())));
+
+    return { gpuBuffer, uploadBuffer };
+}
+
 }  // namespace d3d12_common
 }  // namespace physika

@@ -7,7 +7,6 @@
 #include <filesystem>
 #include <string>
 
-#include "d3d12-util.h"
 #include "d3dcompiler.h"
 #include "logger/logger.h"
 
@@ -135,7 +134,7 @@ bool D3D12ComputeBasic::InitializeDeviceObjects()
     UINT dxgiCreateFlags = 0;
 #ifdef _DEBUG
     dxgiCreateFlags |= DXGI_CREATE_FACTORY_DEBUG;
-    WRL::ComPtr<ID3D12Debug> dc0;
+    d3d12::ID3D12DebugPtr dc0;
     if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&dc0)))) {
         if (SUCCEEDED(dc0->QueryInterface(IID_PPV_ARGS(&mD3D12DebugController)))) {
             logger::LOG_INFO("Enabling Debug Layer and GPU Based Validation.");
@@ -379,13 +378,13 @@ void D3D12ComputeBasic::InitializeResources()
 
     uint64_t byteSize = numbersToAdd1.size() * sizeof(float);
 
-    mVectorOfNumbers1 = d3d12_util::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList,
-                                                        numbersToAdd1.data(), byteSize);
+    mVectorOfNumbers1 = d3d12::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList,
+                                                   numbersToAdd1.data(), byteSize);
 
-    mVectorOfNumbers2 = d3d12_util::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList,
-                                                        numbersToAdd2.data(), byteSize);
+    mVectorOfNumbers2 = d3d12::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList,
+                                                   numbersToAdd2.data(), byteSize);
 
-    mVectorAddResult = d3d12_util::CreateOutputBuffer(mD3D12Device, byteSize);
+    mVectorAddResult = d3d12::CreateOutputBuffer(mD3D12Device, byteSize);
 }
 
 void D3D12ComputeBasic::InitializePSOs()
@@ -398,32 +397,32 @@ void D3D12ComputeBasic::InitializePSOs()
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
     rootSignatureDesc.Init(3, slotRootParameter, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_NONE);
 
-    WRL::ComPtr<ID3DBlob> signature;
-    WRL::ComPtr<ID3DBlob> error;
-    d3d12_util::ThrowIfFailed(D3D12SerializeRootSignature(
+    d3d12::ID3DBlobPtr signature;
+    d3d12::ID3DBlobPtr error;
+    d3d12::ThrowIfFailed(D3D12SerializeRootSignature(
         &rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
-    d3d12_util::ThrowIfFailed(mD3D12Device->CreateRootSignature(0, signature->GetBufferPointer(),
-                                                                signature->GetBufferSize(),
-                                                                IID_PPV_ARGS(&mRootSignature)));
+    d3d12::ThrowIfFailed(mD3D12Device->CreateRootSignature(0, signature->GetBufferPointer(),
+                                                           signature->GetBufferSize(),
+                                                           IID_PPV_ARGS(&mRootSignature)));
 
-    WRL::ComPtr<ID3DBlob> csByteCode = nullptr;
+    d3d12::ID3DBlobPtr csByteCode = nullptr;
 
-    WRL::ComPtr<ID3DBlob> errors;
-    auto const            shaderPath = GetCurrentExeFullPath() / "compute-shader.hlsl";
+    d3d12::ID3DBlobPtr errors;
+    auto const         shaderPath = GetCurrentExeFullPath() / "compute-shader.hlsl";
 
     HRESULT hr = D3DCompileFromFile(shaderPath.wstring().c_str(), nullptr, nullptr, "CSMain",
                                     "cs_5_0", 0, 0, &csByteCode, &errors);
 
     if (errors != nullptr)
         OutputDebugStringA((char*)errors->GetBufferPointer());
-    d3d12_util::ThrowIfFailed(hr);
+    d3d12::ThrowIfFailed(hr);
 
     // Describe and create the compute pipeline object (PSO).
     D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc = {};
     psoDesc.pRootSignature                    = mRootSignature.Get();
     psoDesc.CS                                = CD3DX12_SHADER_BYTECODE(csByteCode.Get());
     psoDesc.Flags                             = D3D12_PIPELINE_STATE_FLAG_NONE;
-    d3d12_util::ThrowIfFailed(
+    d3d12::ThrowIfFailed(
         mD3D12Device->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&mPipelineState)));
 }
 
@@ -451,9 +450,9 @@ void D3D12ComputeBasic::Update()
 
 void D3D12ComputeBasic::Draw()
 {
-    d3d12_util::ThrowIfFailed(mCommandAllocator->Reset());
+    d3d12::ThrowIfFailed(mCommandAllocator->Reset());
 
-    d3d12_util::ThrowIfFailed(
+    d3d12::ThrowIfFailed(
         mGraphicsCommandList->Reset(mCommandAllocator.Get(), mPipelineState.Get()));
 
     auto currentBackBuffer = mSwapChainBackBuffers[mCurrentBackBuffer].Get();
@@ -481,12 +480,12 @@ void D3D12ComputeBasic::Draw()
         currentBackBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     mGraphicsCommandList->ResourceBarrier(1, &transitionToPresentState);
 
-    d3d12_util::ThrowIfFailed(mGraphicsCommandList->Close());
+    d3d12::ThrowIfFailed(mGraphicsCommandList->Close());
 
     ID3D12CommandList* commandLists[] = { mGraphicsCommandList.Get() };
     mCommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
 
-    d3d12_util::ThrowIfFailed(mSwapChain->Present(0, 0));
+    d3d12::ThrowIfFailed(mSwapChain->Present(0, 0));
     mCurrentBackBuffer = (mCurrentBackBuffer + 1) % mSwapChainBufferCount;
 
     FlushCommandQueue();
@@ -496,12 +495,12 @@ void D3D12ComputeBasic::FlushCommandQueue()
 {
     mFenceValue++;
     logger::LOG_DEBUG("Flushing command queue: %d", mFenceValue);
-    d3d12_util::ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mFenceValue));
+    d3d12::ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mFenceValue));
 
     if (mFence->GetCompletedValue() < mFenceValue) {
         logger::LOG_DEBUG("Fence completed value: %d", mFence->GetCompletedValue());
 
-        d3d12_util::ThrowIfFailed(mFence->SetEventOnCompletion(mFenceValue, mFenceEventHandle));
+        d3d12::ThrowIfFailed(mFence->SetEventOnCompletion(mFenceValue, mFenceEventHandle));
         WaitForSingleObject(mFenceEventHandle, INFINITE);
     }
 }
@@ -520,7 +519,7 @@ void D3D12ComputeBasic::OnResize(int width, int height)
     FlushCommandQueue();
 
     //! Reset the command list to prepare resources
-    d3d12_util::ThrowIfFailed(mGraphicsCommandList->Reset(mCommandAllocator.Get(), nullptr));
+    d3d12::ThrowIfFailed(mGraphicsCommandList->Reset(mCommandAllocator.Get(), nullptr));
 
     //! Release previous swapchain resources
     for (auto& backBuffer : mSwapChainBackBuffers) {
@@ -539,8 +538,7 @@ void D3D12ComputeBasic::OnResize(int width, int height)
         mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
     for (uint32_t ii = 0; ii < mSwapChainBufferCount; ++ii) {
-        d3d12_util::ThrowIfFailed(
-            mSwapChain->GetBuffer(ii, IID_PPV_ARGS(&mSwapChainBackBuffers[ii])));
+        d3d12::ThrowIfFailed(mSwapChain->GetBuffer(ii, IID_PPV_ARGS(&mSwapChainBackBuffers[ii])));
         mD3D12Device->CreateRenderTargetView(mSwapChainBackBuffers[ii].Get(), nullptr,
                                              rtvHeapHandle);
         rtvHeapHandle.Offset(ii, rtvDescriptorSize);
@@ -551,7 +549,7 @@ void D3D12ComputeBasic::OnResize(int width, int height)
         logger::LOG_ERROR("Failed to recreate depth/stencil buffer view during resize");
     }
 
-    d3d12_util::ThrowIfFailed(mGraphicsCommandList->Close());
+    d3d12::ThrowIfFailed(mGraphicsCommandList->Close());
     ID3D12CommandList* commandLists[] = { mGraphicsCommandList.Get() };
     mCommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
 
@@ -562,8 +560,8 @@ void D3D12ComputeBasic::OnResize(int width, int height)
 
 void D3D12ComputeBasic::ComputeVectorAdd()
 {
-    d3d12_util::ThrowIfFailed(mCommandAllocator->Reset());
-    d3d12_util::ThrowIfFailed(
+    d3d12::ThrowIfFailed(mCommandAllocator->Reset());
+    d3d12::ThrowIfFailed(
         mGraphicsCommandList->Reset(mCommandAllocator.Get(), mPipelineState.Get()));
 
     auto input1                 = std::get<0>(mVectorOfNumbers1).Get()->GetGPUVirtualAddress();
@@ -590,7 +588,7 @@ void D3D12ComputeBasic::ComputeVectorAdd()
         outputResource.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COMMON);
     mGraphicsCommandList->ResourceBarrier(1, &barrier);
 
-    d3d12_util::ThrowIfFailed(mGraphicsCommandList->Close());
+    d3d12::ThrowIfFailed(mGraphicsCommandList->Close());
     ID3D12CommandList* commandLists[] = { mGraphicsCommandList.Get() };
     mCommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
 

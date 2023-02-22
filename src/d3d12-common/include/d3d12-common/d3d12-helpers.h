@@ -12,6 +12,9 @@ namespace d3d12_common {
 //! @brief Alias representing a tuple of gpubuffer and its upload heap buffer
 using DefaultGPUBuffer = std::tuple<ID3D12ResourcePtr, ID3D12ResourcePtr>;
 
+//! @brief Alias representing a tuple of gpubuffer and its read back heap buffer
+using OutputBuffer = std::tuple<ID3D12ResourcePtr, ID3D12ResourcePtr>;
+
 //! @brief Returns a string representation of a HRESULT param.
 char const* HRErrorDescription(HRESULT hr);
 
@@ -27,6 +30,8 @@ ID3D12ResourcePtr CreateBuffer(ID3D12DevicePtr pDevice, ID3D12GraphicsCommandLis
 //! @out
 DefaultGPUBuffer CreateDefaultBuffer(ID3D12DevicePtr pDevice, ID3D12GraphicsCommandListPtr pCmdlist,
                                      void const* initialData, uint64_t const byteSize);
+
+OutputBuffer CreateOutputBuffer(ID3D12DevicePtr device, uint64_t const byteSize);
 
 struct Mesh
 {

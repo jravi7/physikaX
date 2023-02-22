@@ -6,8 +6,7 @@ phi_add_executable(${TARGET}
                         main.cpp
                         d3d12-compute-basic.h
                         d3d12-compute-basic.cpp
-                        d3d12-util.h
-                        d3d12-util.cpp
+                        
                     SHADERS
                         compute-shader.hlsl
 )
@@ -16,6 +15,7 @@ phi_add_executable(${TARGET}
 target_link_libraries(${TARGET} PRIVATE 
                             app-framework
                             logger
+                            d3d12-common
                             ${D3D12_LIBRARIES}
                     )
 target_include_directories(${TARGET} PRIVATE ${D3D12_INCLUDE_DIRS})
