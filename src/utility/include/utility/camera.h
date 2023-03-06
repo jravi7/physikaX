@@ -1,22 +1,27 @@
+#pragma once
+
 #include <DirectXMath.h>
 
-namespace physika::utility{
-
-namespace dx = DirectX; 
+namespace physika::utility {
 
 class Camera
 {
+public:
+    Camera(DirectX::XMFLOAT3 position, DirectX::XMFLOAT3 target, DirectX::XMFLOAT3 up, float fov,
+           float near, float far, float aspectRatio);
 
-public: 
-    Camera(dx::XMFLOAT3 position, dx::XMFLOAT3 target, dx::XMFLOAT3 up); 
+    DirectX::XMFLOAT4X4 View() const;
+    DirectX::XMFLOAT4X4 Projection() const;
+    DirectX::XMFLOAT4X4 Matrix() const;
 
-    dx::XMFLOAT4X4 View(); 
-    dx::XMFLOAT4X4 Projection(); 
-private: 
-
-    dx::XMFLOAT3 mPostion;
-    dx::XMFLOAT3 mTarget;
-    dx::XMFLOAT3 mUp;
+private:
+    float             mNear;
+    float             mFar;
+    float             mAspectRatio;
+    float             mFov;
+    DirectX::XMFLOAT3 mPostion;
+    DirectX::XMFLOAT3 mTarget;
+    DirectX::XMFLOAT3 mUp;
 };
 
-}
+}  // namespace physika::utility
