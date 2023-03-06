@@ -1,7 +1,9 @@
+#libraries
 add_subdirectory(app-framework)
 add_subdirectory(timer)
 add_subdirectory(logger)
 add_subdirectory(d3d12-common)
+add_subdirectory(utility)
 
 # samples
 add_subdirectory(samples/glfw-init)
