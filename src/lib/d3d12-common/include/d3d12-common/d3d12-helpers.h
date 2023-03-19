@@ -2,6 +2,7 @@
 #include <inttypes.h>    // uint64_t
 #include <wrl/client.h>  // ComPtr
 
+#include <unordered_map>
 #include <tuple>
 
 #include "d3d12-common/d3d12-common.h"
@@ -33,17 +34,33 @@ DefaultGPUBuffer CreateDefaultBuffer(ID3D12DevicePtr pDevice, ID3D12GraphicsComm
 
 OutputBuffer CreateOutputBuffer(ID3D12DevicePtr device, uint64_t const byteSize);
 
+struct Submesh 
+{
+    uint32_t indexCount = 0;
+    uint32_t vertexStartLocation = 0; 
+    uint32_t indexStartLocation = 0; 
+};
+
 struct Mesh
 {
-    ID3D12ResourcePtr vertexBufferGPU;
-    ID3D12ResourcePtr vertexBufferUploadHeap;
-    ID3D12ResourcePtr indexBufferGPU;
-    ID3D12ResourcePtr indexBufferUploadHeap;
+    std::string     name; 
+    std::unordered_map<std::string, Submesh> drawArgs; 
+
+    ID3DBlobPtr     vertexBufferCPU = nullptr; 
+    ID3DBlobPtr     indexBufferCPU = nullptr; 
+
+    ID3D12ResourcePtr vertexBufferGPU = nullptr; 
+    ID3D12ResourcePtr indexBufferGPU = nullptr; 
+
+    ID3D12ResourcePtr vertexBufferUploadHeap = nullptr; 
+    ID3D12ResourcePtr indexBufferUploadHeap = nullptr; 
 
     DXGI_FORMAT indexFormat         = DXGI_FORMAT_R32_UINT;
     UINT        indexBufferByteSize = 0;
-    uint32_t    vertexByteStride;
-    uint32_t    vertexBufferByteSize;
+    uint32_t    vertexByteStride = 0;
+    uint32_t    vertexBufferByteSize = 0;
+
+
 
     D3D12_VERTEX_BUFFER_VIEW VertexBufferView() const
     {
