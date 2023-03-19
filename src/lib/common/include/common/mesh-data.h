@@ -21,6 +21,16 @@ struct MeshData
 {
     std::vector<VertexData> vertices;
     std::vector<uint32_t>   indices;
+
+    size_t PerVertexDataSize() const
+    {
+        return sizeof(VertexData);
+    }
+
+    size_t IndexDataSize() const
+    {
+        return sizeof(uint32_t);
+    }
 };
 
 }  // namespace physika::common

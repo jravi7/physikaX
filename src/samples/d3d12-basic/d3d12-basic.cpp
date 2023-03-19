@@ -7,10 +7,10 @@
 #include <filesystem>
 #include <string>
 
+#include "common/mesh-data.h"
+#include "common/primitive-generator.h"
 #include "d3dcompiler.h"
 #include "logger/logger.h"
-#include "primitive-generator.h"
-#include "vertex-data.h"
 
 namespace {
 
@@ -371,28 +371,25 @@ void D3D12Basic::InitializeResources()
     //! Initialize Mesh - Vertex and Index Buffers;
     mMeshBuffers = std::make_unique<d3d12::Mesh>();
 
-    std::vector<VertexData> vertices;
-    std::vector<uint32_t>   indices;
-    uint32_t                vertexCount = 0;
-    uint32_t                indexCount  = 0;
-    primitive_gen::CreateEquilateralTriangle(1, nullptr, &vertexCount, nullptr, &indexCount);
-    vertices.resize(vertexCount);
-    indices.resize(indexCount);
-    primitive_gen::CreateEquilateralTriangle(1, vertices.data(), &vertexCount, indices.data(),
-                                             &indexCount);
+    common::MeshData meshData = common::CreateEquilateralTriangle(1);
+
+    auto const vertexBufferSize =
+        static_cast<uint32_t>(meshData.vertices.size() * meshData.PerVertexDataSize());
+    auto const indexBufferSize =
+        static_cast<uint32_t>(meshData.indices.size() * meshData.IndexDataSize());
 
     std::tie(mMeshBuffers->vertexBufferGPU, mMeshBuffers->vertexBufferUploadHeap) =
-        d3d12::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList, vertices.data(),
-                                   vertices.size() * sizeof(VertexData));
+        d3d12::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList, meshData.vertices.data(),
+                                   vertexBufferSize);
 
     std::tie(mMeshBuffers->indexBufferGPU, mMeshBuffers->indexBufferUploadHeap) =
-        d3d12::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList, indices.data(),
-                                   indices.size() * sizeof(uint32_t));
+        d3d12::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList, meshData.indices.data(),
+                                   indexBufferSize);
 
-    mMeshBuffers->vertexBufferByteSize = (uint32_t)vertices.size() * sizeof(VertexData);
-    mMeshBuffers->vertexByteStride     = sizeof(VertexData);
+    mMeshBuffers->vertexBufferByteSize = vertexBufferSize;
+    mMeshBuffers->vertexByteStride     = static_cast<uint32_t>(meshData.PerVertexDataSize());
     mMeshBuffers->indexFormat          = DXGI_FORMAT_R32_UINT;
-    mMeshBuffers->indexBufferByteSize  = (uint32_t)indices.size() * sizeof(uint32_t);
+    mMeshBuffers->indexBufferByteSize  = indexBufferSize;
 }
 
 void D3D12Basic::InitializePSOs()

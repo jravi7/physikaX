@@ -21,7 +21,7 @@ MeshData CreateEquilateralTriangle(float const side)
         { XMFLOAT3(side * 0.5f, -side * 0.5f, 0.0f), XMFLOAT4(Colors::Blue) });
     meshData.vertices.push_back({ XMFLOAT3(0, side * 0.5f, 0.0f), XMFLOAT4(Colors::Green) });
     meshData.vertices.push_back(
-        { XMFLOAT3(-side * 0.5f, -side * 0.5f, 0.0f), XMFLOAT4(Colors::Red) });
+        { XMFLOAT3(-side * 0.5f, -side * 0.5f, 0.0f), XMFLOAT4(Colors::Magenta) });
 
     meshData.indices.push_back(0);
     meshData.indices.push_back(1);
