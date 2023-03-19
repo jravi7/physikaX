@@ -7,7 +7,6 @@
 #include <filesystem>
 #include <string>
 
-#include "d3d12-util.h"
 #include "d3dcompiler.h"
 #include "logger/logger.h"
 #include "primitive-generator.h"
