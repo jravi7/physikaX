@@ -508,7 +508,7 @@ void D3D12Basic::Draw()
 
     mGraphicsCommandList->SetGraphicsRootSignature(mRootSignature.Get());
     mGraphicsCommandList->SetPipelineState(mPipelineState.Get());
-    // Setup mesh render 
+    // Setup mesh render
     auto const& ibView = mMeshBuffers->IndexBufferView();
     auto const& vbView = mMeshBuffers->VertexBufferView();
     mGraphicsCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
