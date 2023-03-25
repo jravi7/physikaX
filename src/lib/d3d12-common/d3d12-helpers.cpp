@@ -9,6 +9,11 @@
 namespace physika {
 namespace d3d12_common {
 
+uint64_t SizeWithAlignment(uint64_t const byteSize, uint64_t const alignment)
+{
+    return ((byteSize + alignment - 1) / alignment) * alignment;
+}
+
 char const* HRErrorDescription(HRESULT hr)
 {
     _com_error err(hr);
@@ -22,12 +27,12 @@ void ThrowIfFailed(HRESULT hr)
     }
 }
 
-ID3D12ResourcePtr CreateBuffer(ID3D12DevicePtr pDevice, ID3D12GraphicsCommandListPtr pCmdList,
-                               D3D12_HEAP_PROPERTIES const& heapProperties, uint64_t const size)
+ID3D12ResourcePtr CreateBuffer(ID3D12DevicePtr pDevice, D3D12_HEAP_PROPERTIES const& heapProperties,
+                               uint64_t const size)
 {
     ID3D12ResourcePtr pBuffer = nullptr;
 
-    if (!pDevice || !pCmdList || size == 0) {
+    if (!pDevice || size == 0) {
         return pBuffer;
     }
     auto const& bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(size);
@@ -46,9 +51,8 @@ DefaultGPUBuffer CreateDefaultBuffer(ID3D12DevicePtr pDevice, ID3D12GraphicsComm
     auto const& defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     auto const& uploadHeapProperties  = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 
-    ID3D12ResourcePtr gpuBuffer = CreateBuffer(pDevice, pCmdList, defaultHeapProperties, byteSize);
-    ID3D12ResourcePtr uploadBuffer =
-        CreateBuffer(pDevice, pCmdList, uploadHeapProperties, byteSize);
+    ID3D12ResourcePtr gpuBuffer    = CreateBuffer(pDevice, defaultHeapProperties, byteSize);
+    ID3D12ResourcePtr uploadBuffer = CreateBuffer(pDevice, uploadHeapProperties, byteSize);
 
     // Subresource Data desc
     D3D12_SUBRESOURCE_DATA subresourceData;

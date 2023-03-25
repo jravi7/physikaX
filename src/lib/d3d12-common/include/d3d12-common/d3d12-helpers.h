@@ -2,8 +2,8 @@
 #include <inttypes.h>    // uint64_t
 #include <wrl/client.h>  // ComPtr
 
-#include <unordered_map>
 #include <tuple>
+#include <unordered_map>
 
 #include "d3d12-common/d3d12-common.h"
 
@@ -22,10 +22,10 @@ char const* HRErrorDescription(HRESULT hr);
 //! @brief throw an exception on HRESULT failure
 void ThrowIfFailed(HRESULT hr);
 
-//! @brief Creates a default GPU Buffer and Upload Heap buffer with initial data.
+//! @brief Create a committed buffer
 //! @out
-ID3D12ResourcePtr CreateBuffer(ID3D12DevicePtr pDevice, ID3D12GraphicsCommandListPtr pCmdList,
-                               D3D12_HEAP_PROPERTIES const& heapProperties, uint64_t const size);
+ID3D12ResourcePtr CreateBuffer(ID3D12DevicePtr pDevice, D3D12_HEAP_PROPERTIES const& heapProperties,
+                               uint64_t const size);
 
 //! @brief Creates a default GPU Buffer and Upload Heap buffer with initial data.
 //! @out
@@ -34,33 +34,33 @@ DefaultGPUBuffer CreateDefaultBuffer(ID3D12DevicePtr pDevice, ID3D12GraphicsComm
 
 OutputBuffer CreateOutputBuffer(ID3D12DevicePtr device, uint64_t const byteSize);
 
-struct Submesh 
+uint64_t SizeWithAlignment(uint64_t const byteSize, uint64_t const alignment);
+
+struct Submesh
 {
-    uint32_t indexCount = 0;
-    uint32_t vertexStartLocation = 0; 
-    uint32_t indexStartLocation = 0; 
+    uint32_t indexCount          = 0;
+    uint32_t vertexStartLocation = 0;
+    uint32_t indexStartLocation  = 0;
 };
 
 struct Mesh
 {
-    std::string     name; 
-    std::unordered_map<std::string, Submesh> drawArgs; 
+    std::string                              name;
+    std::unordered_map<std::string, Submesh> drawArgs;
 
-    ID3DBlobPtr     vertexBufferCPU = nullptr; 
-    ID3DBlobPtr     indexBufferCPU = nullptr; 
+    ID3DBlobPtr vertexBufferCPU = nullptr;
+    ID3DBlobPtr indexBufferCPU  = nullptr;
 
-    ID3D12ResourcePtr vertexBufferGPU = nullptr; 
-    ID3D12ResourcePtr indexBufferGPU = nullptr; 
+    ID3D12ResourcePtr vertexBufferGPU = nullptr;
+    ID3D12ResourcePtr indexBufferGPU  = nullptr;
 
-    ID3D12ResourcePtr vertexBufferUploadHeap = nullptr; 
-    ID3D12ResourcePtr indexBufferUploadHeap = nullptr; 
+    ID3D12ResourcePtr vertexBufferUploadHeap = nullptr;
+    ID3D12ResourcePtr indexBufferUploadHeap  = nullptr;
 
-    DXGI_FORMAT indexFormat         = DXGI_FORMAT_R32_UINT;
-    UINT        indexBufferByteSize = 0;
-    uint32_t    vertexByteStride = 0;
+    DXGI_FORMAT indexFormat          = DXGI_FORMAT_R32_UINT;
+    UINT        indexBufferByteSize  = 0;
+    uint32_t    vertexByteStride     = 0;
     uint32_t    vertexBufferByteSize = 0;
-
-
 
     D3D12_VERTEX_BUFFER_VIEW VertexBufferView() const
     {

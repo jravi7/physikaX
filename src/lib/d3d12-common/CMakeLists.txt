@@ -3,6 +3,7 @@ set(TARGET d3d12-common)
 set(SOURCES d3d12-helpers.cpp
             include/d3d12-common/d3d12-helpers.h
             include/d3d12-common/d3d12-common.h
+            include/d3d12-common/d3d12-upload-buffer.h
 )
 
 
