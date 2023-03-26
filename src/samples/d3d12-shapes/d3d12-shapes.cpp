@@ -31,7 +31,7 @@ std::filesystem::path GetCurrentExeFullPath()
     return std::filesystem::path(buffer).parent_path();
 }
 
-std::string const& shaderHlsl = "shapes.hlsl"
+std::string const& shaderHlsl = "shapes.hlsl";
 
 }  // namespace
 
@@ -411,7 +411,7 @@ void D3D12Shapes::InitializePSOs()
     ID3DBlobPtr vsByteCode = nullptr;
     ID3DBlobPtr psByteCode = nullptr;
     ID3DBlobPtr errors;
-    auto const  shaderPath = GetCurrentExeFullPath() / "shaders.hlsl";
+    auto const  shaderPath = GetCurrentExeFullPath() / shaderHlsl;
 
     HRESULT hr = D3DCompileFromFile(shaderPath.wstring().c_str(), nullptr, nullptr, "VSMain",
                                     "vs_5_0", 0, 0, &vsByteCode, &errors);

@@ -7,7 +7,7 @@ phi_add_executable(${TARGET}
                         d3d12-shapes.h
                         d3d12-shapes.cpp
                     SHADERS
-                        shaders.hlsl
+                        shapes.hlsl
 )
 
 # link to app-framework static library
