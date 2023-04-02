@@ -1,3 +1,4 @@
+#pragma once
 #include <d3d12.h>
 #include <inttypes.h>    // uint64_t
 #include <wrl/client.h>  // ComPtr
