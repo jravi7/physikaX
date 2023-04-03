@@ -11,6 +11,8 @@
 #include "app-framework/input.h"
 #include "d3d12-common/d3d12-common.h"
 #include "d3d12-common/d3d12-helpers.h"
+#include "frame-resource.h"
+#include "timer/timer.h"
 
 namespace sample {
 
@@ -39,6 +41,7 @@ public:
 private:
     bool InitializeDeviceObjects();
     bool InitializeCommandObjects();
+    void InitializeFrameResources();
     bool InitializeSwapChain();
     bool InitializeSyncObjects();
 
@@ -80,6 +83,8 @@ private:
     D3D12_RECT     mScissorRect;
 
     //! Sync Variables
+    physika::Timer        mTimer;
+    uint64_t              mCurrentFrameIndex;
     uint64_t              mFenceValue;
     HANDLE                mFenceEventHandle;
     d3d12::ID3D12FencePtr mFence;
@@ -88,6 +93,9 @@ private:
     std::unique_ptr<d3d12::Mesh>  mMeshBuffers;
     d3d12::ID3D12PipelineStatePtr mPipelineState;
     d3d12::ID3D12RootSignaturePtr mRootSignature;
+
+    std::vector<std::shared_ptr<physika::FrameResource>> mFrameResources;
+    std::shared_ptr<physika::FrameResource>              mCurrentFrameResource;
 };
 
 }  // namespace sample

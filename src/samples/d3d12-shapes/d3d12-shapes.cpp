@@ -39,11 +39,13 @@ namespace sample {
 
 using namespace physika;
 using namespace physika::d3d12_common;
+using namespace physika::logger;
 
 D3D12Shapes::D3D12Shapes(TCHAR const* const title, int width, int height)
     : physika::Application(title, width, height)
 {
     mSwapChainBufferCount = 2;
+    mCurrentFrameIndex    = 0;
     mFenceValue           = 0;
     mCurrentBackBuffer    = 0;
     mBackBufferFormat     = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -63,8 +65,10 @@ D3D12Shapes::D3D12Shapes(TCHAR const* const title, int width, int height)
     mDsvHeap              = nullptr;
     mDepthStencilBuffer   = nullptr;
     mFence                = nullptr;
+    mCurrentFrameResource = nullptr;
     mSwapChainBackBuffers.clear();
     mSwapChainBackBuffers.resize(mSwapChainBufferCount);
+    mFrameResources.reserve(mSwapChainBufferCount);
 }
 
 D3D12Shapes::~D3D12Shapes()
@@ -119,6 +123,7 @@ bool D3D12Shapes::Initialize()
     InitializePSOs();
     mCommandAllocator->Reset();
     mGraphicsCommandList->Reset(mCommandAllocator.Get(), nullptr);
+    InitializeFrameResources();
     InitializeResources();
 
     mGraphicsCommandList->Close();
@@ -127,6 +132,7 @@ bool D3D12Shapes::Initialize()
     FlushCommandQueue();
 
     ResizeViewportAndScissorRect();
+    mTimer.Start();
 
     return true;
 }
@@ -210,6 +216,14 @@ bool D3D12Shapes::InitializeCommandObjects()
     logger::LOG_DEBUG("Command objects successfully created.");
 
     return true;
+}
+
+void D3D12Shapes::InitializeFrameResources()
+{
+    for (uint32_t ii = 0; ii < mSwapChainBufferCount; ++ii) {
+        mFrameResources.emplace_back(std::make_shared<FrameResource>(mD3D12Device, 1));
+        mFrameResources[ii]->pCommandAllocator->Reset();
+    }
 }
 
 bool D3D12Shapes::InitializeSwapChain()
@@ -456,6 +470,7 @@ void D3D12Shapes::InitializePSOs()
 
 bool D3D12Shapes::Shutdown()
 {
+    mTimer.Stop();
     FlushCommandQueue();
     if (CloseHandle(mFenceEventHandle)) {
         logger::LOG_ERROR("Failed to close event handle on shutdown");
@@ -475,14 +490,32 @@ void D3D12Shapes::OnUpdate()
 
 void D3D12Shapes::Update()
 {
+    //! Wait for frame resources to be freed up
+    auto resourceIndex    = mCurrentFrameIndex % mSwapChainBufferCount;
+    resourceIndex         = 0;
+    mCurrentFrameResource = mFrameResources[resourceIndex];
+    if (mFence->GetCompletedValue() < mCurrentFrameResource->fenceIndex) {
+        logger::LOG_DEBUG("Frame[%d] Fence completed value: %d", mCurrentFrameIndex,
+                          mFence->GetCompletedValue());
+        HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+        assert(eventHandle && "Failed to create handle");
+        d3d12::ThrowIfFailed(mFence->SetEventOnCompletion(mFenceValue, eventHandle));
+        WaitForSingleObject(eventHandle, INFINITE);
+        CloseHandle(eventHandle);
+    }
+    mTimer.Tick();
+    logger::LOG_INFO("Frame[%d] Fence completed value: %d", mCurrentFrameIndex,
+                     mCurrentFrameResource->fenceIndex);
+    LOG_INFO("Total Elapsed Time: %f", mTimer.TotalRunningTime());
 }
 
 void D3D12Shapes::Draw()
 {
-    d3d12::ThrowIfFailed(mCommandAllocator->Reset());
+    auto& pCommandAllocator = mCurrentFrameResource->pCommandAllocator;
+    d3d12::ThrowIfFailed(pCommandAllocator->Reset());
 
     d3d12::ThrowIfFailed(
-        mGraphicsCommandList->Reset(mCommandAllocator.Get(), mPipelineState.Get()));
+        mGraphicsCommandList->Reset(pCommandAllocator.Get(), mPipelineState.Get()));
 
     auto currentBackBuffer = mSwapChainBackBuffers[mCurrentBackBuffer].Get();
 
@@ -527,7 +560,10 @@ void D3D12Shapes::Draw()
     d3d12::ThrowIfFailed(mSwapChain->Present(0, 0));
     mCurrentBackBuffer = (mCurrentBackBuffer + 1) % mSwapChainBufferCount;
 
-    FlushCommandQueue();
+    mCurrentFrameIndex++;
+    mFenceValue++;
+    mCurrentFrameResource->fenceIndex = mFenceValue;
+    d3d12::ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mFenceValue));
 }
 
 void D3D12Shapes::FlushCommandQueue()
@@ -549,6 +585,9 @@ void D3D12Shapes::OnResize(int width, int height)
     if (!mD3D12Device) {
         return;
     }
+    auto resourceIndex      = mCurrentFrameIndex % mSwapChainBufferCount;
+    resourceIndex           = 0;
+    auto& pCommandAllocator = mFrameResources[resourceIndex]->pCommandAllocator;
     logger::LOG_DEBUG("%d x %d", width, height);
     //! Update client widt and height;
     mWindowWidth  = width;
@@ -558,7 +597,7 @@ void D3D12Shapes::OnResize(int width, int height)
     FlushCommandQueue();
 
     //! Reset the command list to prepare resources
-    d3d12::ThrowIfFailed(mGraphicsCommandList->Reset(mCommandAllocator.Get(), nullptr));
+    d3d12::ThrowIfFailed(mGraphicsCommandList->Reset(pCommandAllocator.Get(), nullptr));
 
     //! Release previous swapchain resources
     for (auto& backBuffer : mSwapChainBackBuffers) {

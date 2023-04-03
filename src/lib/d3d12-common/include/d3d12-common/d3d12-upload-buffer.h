@@ -11,15 +11,15 @@ template <typename T>
 class UploadBuffer
 {
 public:
-    UploadBuffer(ID3D12DevicePtr pDevice, uint32_t elementCount, bool isConstantBuffer)
+    UploadBuffer(ID3D12DevicePtr pDevice, uint32_t elementCount, bool isConstantBuffer = false)
     {
         mElementSize = sizeof(T);
         if (isConstantBuffer) {
-            mElementSize = SizeWithAlignment(sizeof(T), 256)
+            mElementSize = SizeWithAlignment(sizeof(T), 256);
         }
         auto const& uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
         mBuffer = CreateBuffer(pDevice, uploadHeapProperties, mElementSize * elementCount);
-        mBuffer->Map(0, nullptr, static_cast<void**>(&mMappedBuffer));
+        mBuffer->Map(0, nullptr, reinterpret_cast<void**>(&mMappedBuffer));
     }
     ~UploadBuffer()
     {

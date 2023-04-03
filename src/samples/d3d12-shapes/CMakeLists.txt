@@ -6,6 +6,8 @@ phi_add_executable(${TARGET}
                         main.cpp
                         d3d12-shapes.h
                         d3d12-shapes.cpp
+                        frame-resource.h
+                        frame-resource.cpp
                     SHADERS
                         shapes.hlsl
 )
@@ -17,6 +19,7 @@ target_link_libraries(${TARGET} PRIVATE
                             common
                             d3d12-common
                             utility
+                            timer
                             ${D3D12_LIBRARIES}
                     )
 target_include_directories(${TARGET} PRIVATE ${D3D12_INCLUDE_DIRS})
