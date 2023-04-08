@@ -51,7 +51,7 @@ private:
     void ResizeViewportAndScissorRect();
 
     // Resources
-    void InitializeResources();
+    void InitializeSceneGeometry();
     void InitializePSOs();
 
     void FlushCommandQueue();
@@ -86,7 +86,6 @@ private:
     physika::Timer        mTimer;
     uint64_t              mCurrentFrameIndex;
     uint64_t              mFenceValue;
-    HANDLE                mFenceEventHandle;
     d3d12::ID3D12FencePtr mFence;
 
     //! Resources

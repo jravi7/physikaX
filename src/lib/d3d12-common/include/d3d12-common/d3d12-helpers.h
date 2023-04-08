@@ -58,7 +58,7 @@ struct Mesh
     ID3D12ResourcePtr vertexBufferUploadHeap = nullptr;
     ID3D12ResourcePtr indexBufferUploadHeap  = nullptr;
 
-    DXGI_FORMAT indexFormat          = DXGI_FORMAT_R32_UINT;
+    DXGI_FORMAT indexFormat          = DXGI_FORMAT_UNKNOWN;
     UINT        indexBufferByteSize  = 0;
     uint32_t    vertexByteStride     = 0;
     uint32_t    vertexBufferByteSize = 0;
@@ -81,6 +81,11 @@ struct Mesh
         ibv.SizeInBytes    = indexBufferByteSize;
 
         return ibv;
+    }
+    void DisposeUploaders()
+    {
+        vertexBufferUploadHeap = nullptr;
+        indexBufferUploadHeap  = nullptr;
     }
 };
 

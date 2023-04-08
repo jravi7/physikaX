@@ -124,7 +124,7 @@ bool D3D12Shapes::Initialize()
     mCommandAllocator->Reset();
     mGraphicsCommandList->Reset(mCommandAllocator.Get(), nullptr);
     InitializeFrameResources();
-    InitializeResources();
+    InitializeSceneGeometry();
 
     mGraphicsCommandList->Close();
     ID3D12CommandList* commandLists[] = { mGraphicsCommandList.Get() };
@@ -374,15 +374,10 @@ bool D3D12Shapes::InitializeSyncObjects()
                                          IID_PPV_ARGS(mFence.GetAddressOf())))) {
         return false;
     }
-    mFenceEventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
-    if (!mFenceEventHandle) {
-        logger::LOG_FATAL("Failed to create a fence handle");
-        return false;
-    }
     return true;
 }
 
-void D3D12Shapes::InitializeResources()
+void D3D12Shapes::InitializeSceneGeometry()
 {
     //! Initialize Mesh - Vertex and Index Buffers;
     mMeshBuffers = std::make_unique<d3d12::Mesh>();
@@ -402,12 +397,17 @@ void D3D12Shapes::InitializeResources()
         d3d12::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList, meshData.indices.data(),
                                    indexBufferSize);
 
-    mMeshBuffers->vertexBufferByteSize = vertexBufferSize;
-    mMeshBuffers->vertexByteStride     = static_cast<uint32_t>(meshData.PerVertexDataSize());
-    mMeshBuffers->indexFormat          = DXGI_FORMAT_R32_UINT;
-    mMeshBuffers->indexBufferByteSize  = indexBufferSize;
-}
+    Submesh triangleSubmesh;
+    triangleSubmesh.indexCount          = 3;
+    triangleSubmesh.vertexStartLocation = 0;
+    triangleSubmesh.indexStartLocation  = 0;
 
+    mMeshBuffers->drawArgs["helloTriangle"] = triangleSubmesh;
+    mMeshBuffers->vertexBufferByteSize      = vertexBufferSize;
+    mMeshBuffers->vertexByteStride          = static_cast<uint32_t>(meshData.PerVertexDataSize());
+    mMeshBuffers->indexFormat               = DXGI_FORMAT_R32_UINT;
+    mMeshBuffers->indexBufferByteSize       = indexBufferSize;
+}
 void D3D12Shapes::InitializePSOs()
 {
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
@@ -472,10 +472,6 @@ bool D3D12Shapes::Shutdown()
 {
     mTimer.Stop();
     FlushCommandQueue();
-    if (CloseHandle(mFenceEventHandle)) {
-        logger::LOG_ERROR("Failed to close event handle on shutdown");
-        return false;
-    }
     if (!physika::Application::Shutdown()) {
         return false;
     }
@@ -496,7 +492,7 @@ void D3D12Shapes::Update()
     mCurrentFrameResource = mFrameResources[resourceIndex];
     if (mFence->GetCompletedValue() < mCurrentFrameResource->fenceIndex) {
         logger::LOG_DEBUG("Frame[%d] Fence completed value: %d", mCurrentFrameIndex,
-                          mFence->GetCompletedValue());
+                          mCurrentFrameResource->fenceIndex);
         HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
         assert(eventHandle && "Failed to create handle");
         d3d12::ThrowIfFailed(mFence->SetEventOnCompletion(mFenceValue, eventHandle));
@@ -504,8 +500,6 @@ void D3D12Shapes::Update()
         CloseHandle(eventHandle);
     }
     mTimer.Tick();
-    logger::LOG_INFO("Frame[%d] Fence completed value: %d", mCurrentFrameIndex,
-                     mCurrentFrameResource->fenceIndex);
     LOG_INFO("Total Elapsed Time: %f", mTimer.TotalRunningTime());
 }
 
@@ -573,10 +567,14 @@ void D3D12Shapes::FlushCommandQueue()
     d3d12::ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mFenceValue));
 
     if (mFence->GetCompletedValue() < mFenceValue) {
+        HANDLE fenceEventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+        if (!fenceEventHandle) {
+            throw std::exception("Failed to create a fence handle");
+        }
         logger::LOG_DEBUG("Fence completed value: %d", mFence->GetCompletedValue());
 
-        d3d12::ThrowIfFailed(mFence->SetEventOnCompletion(mFenceValue, mFenceEventHandle));
-        WaitForSingleObject(mFenceEventHandle, INFINITE);
+        d3d12::ThrowIfFailed(mFence->SetEventOnCompletion(mFenceValue, fenceEventHandle));
+        WaitForSingleObject(fenceEventHandle, INFINITE);
     }
 }
 
