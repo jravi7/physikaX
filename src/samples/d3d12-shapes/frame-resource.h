@@ -1,12 +1,23 @@
 #pragma once
 #include <DirectXMath.h>
 
+#include "d3d12-common/d3d12-helpers.h"
 #include "d3d12-common/d3d12-upload-buffer.h"
 
 namespace physika {
 struct PerObjectCBData
 {
     DirectX::XMFLOAT4X4 mvp;
+};
+
+struct RenderItem
+{
+    RenderItem()                                  = default;
+    uint32_t            indexCount                = 0;
+    uint32_t            vertexBufferStartLocation = 0;
+    uint32_t            indexBufferStartLocation  = 0;
+    d3d12_common::Mesh* parentMeshBuffer          = nullptr;
+    DirectX::XMFLOAT4X4 worldMatrix;
 };
 
 struct FrameResource

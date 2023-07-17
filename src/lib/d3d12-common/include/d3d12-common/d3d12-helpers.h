@@ -47,7 +47,7 @@ struct Submesh
 struct Mesh
 {
     std::string                              name;
-    std::unordered_map<std::string, Submesh> drawArgs;
+    std::unordered_map<std::string, Submesh> submeshes;
 
     ID3DBlobPtr vertexBufferCPU = nullptr;
     ID3DBlobPtr indexBufferCPU  = nullptr;

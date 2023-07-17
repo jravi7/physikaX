@@ -37,6 +37,7 @@ std::string const& shaderHlsl = "shapes.hlsl";
 
 namespace sample {
 
+namespace dx = DirectX;
 using namespace physika;
 using namespace physika::d3d12_common;
 using namespace physika::logger;
@@ -123,8 +124,9 @@ bool D3D12Shapes::Initialize()
     InitializePSOs();
     mCommandAllocator->Reset();
     mGraphicsCommandList->Reset(mCommandAllocator.Get(), nullptr);
-    InitializeFrameResources();
     InitializeSceneGeometry();
+    InitializeRenderItems();
+    InitializeFrameResources();
 
     mGraphicsCommandList->Close();
     ID3D12CommandList* commandLists[] = { mGraphicsCommandList.Get() };
@@ -380,7 +382,8 @@ bool D3D12Shapes::InitializeSyncObjects()
 void D3D12Shapes::InitializeSceneGeometry()
 {
     //! Initialize Mesh - Vertex and Index Buffers;
-    mMeshBuffers = std::make_unique<d3d12::Mesh>();
+    auto shapesBuffer  = std::make_shared<d3d12::Mesh>();
+    shapesBuffer->name = "Shapes Buffer";
 
     common::MeshData meshData = common::CreateEquilateralTriangle(1);
 
@@ -389,24 +392,44 @@ void D3D12Shapes::InitializeSceneGeometry()
     auto const indexBufferSize =
         static_cast<uint32_t>(meshData.indices.size() * meshData.IndexDataSize());
 
-    std::tie(mMeshBuffers->vertexBufferGPU, mMeshBuffers->vertexBufferUploadHeap) =
+    std::tie(shapesBuffer->vertexBufferGPU, shapesBuffer->vertexBufferUploadHeap) =
         d3d12::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList, meshData.vertices.data(),
                                    vertexBufferSize);
 
-    std::tie(mMeshBuffers->indexBufferGPU, mMeshBuffers->indexBufferUploadHeap) =
+    std::tie(shapesBuffer->indexBufferGPU, shapesBuffer->indexBufferUploadHeap) =
         d3d12::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList, meshData.indices.data(),
                                    indexBufferSize);
 
     Submesh triangleSubmesh;
-    triangleSubmesh.indexCount          = 3;
+    triangleSubmesh.indexCount          = (uint32_t)meshData.indices.size();
     triangleSubmesh.vertexStartLocation = 0;
     triangleSubmesh.indexStartLocation  = 0;
 
-    mMeshBuffers->drawArgs["helloTriangle"] = triangleSubmesh;
-    mMeshBuffers->vertexBufferByteSize      = vertexBufferSize;
-    mMeshBuffers->vertexByteStride          = static_cast<uint32_t>(meshData.PerVertexDataSize());
-    mMeshBuffers->indexFormat               = DXGI_FORMAT_R32_UINT;
-    mMeshBuffers->indexBufferByteSize       = indexBufferSize;
+    shapesBuffer->submeshes["helloTriangle"] = triangleSubmesh;
+    shapesBuffer->vertexBufferByteSize       = vertexBufferSize;
+    shapesBuffer->vertexByteStride           = static_cast<uint32_t>(meshData.PerVertexDataSize());
+    shapesBuffer->indexFormat                = DXGI_FORMAT_R32_UINT;
+    shapesBuffer->indexBufferByteSize        = indexBufferSize;
+
+    mMeshBuffers[shapesBuffer->name] = shapesBuffer;
+}
+
+void D3D12Shapes::InitializeRenderItems()
+{
+    // Iterate the mesh buffers and create render items
+    for (auto& meshIter : mMeshBuffers) {
+        Mesh* parentMesh = meshIter.second.get();
+        for (auto& submeshIter : meshIter.second->submeshes) {
+            auto renderItem = std::make_shared<RenderItem>();
+            // dx::XMFLOAT3 pos = {0.0f, 0.0f, 0.0f};
+            dx::XMStoreFloat4x4(&renderItem->worldMatrix, dx::XMMatrixIdentity());
+            renderItem->parentMeshBuffer          = parentMesh;
+            renderItem->indexBufferStartLocation  = submeshIter.second.indexStartLocation;
+            renderItem->vertexBufferStartLocation = submeshIter.second.vertexStartLocation;
+            renderItem->indexCount                = submeshIter.second.indexCount;
+            mSceneObjects.push_back(renderItem);
+        }
+    }
 }
 void D3D12Shapes::InitializePSOs()
 {
@@ -488,19 +511,16 @@ void D3D12Shapes::Update()
 {
     //! Wait for frame resources to be freed up
     auto resourceIndex    = mCurrentFrameIndex % mSwapChainBufferCount;
-    resourceIndex         = 0;
     mCurrentFrameResource = mFrameResources[resourceIndex];
-    if (mFence->GetCompletedValue() < mCurrentFrameResource->fenceIndex) {
-        logger::LOG_DEBUG("Frame[%d] Fence completed value: %d", mCurrentFrameIndex,
-                          mCurrentFrameResource->fenceIndex);
-        HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+    if (mCurrentFrameResource->fenceIndex != 0 &&
+        mFence->GetCompletedValue() < mCurrentFrameResource->fenceIndex) {
+        HANDLE eventHandle = CreateEvent(nullptr, false, false, nullptr);
         assert(eventHandle && "Failed to create handle");
         d3d12::ThrowIfFailed(mFence->SetEventOnCompletion(mFenceValue, eventHandle));
         WaitForSingleObject(eventHandle, INFINITE);
         CloseHandle(eventHandle);
     }
     mTimer.Tick();
-    LOG_INFO("Total Elapsed Time: %f", mTimer.TotalRunningTime());
 }
 
 void D3D12Shapes::Draw()
@@ -508,8 +528,7 @@ void D3D12Shapes::Draw()
     auto& pCommandAllocator = mCurrentFrameResource->pCommandAllocator;
     d3d12::ThrowIfFailed(pCommandAllocator->Reset());
 
-    d3d12::ThrowIfFailed(
-        mGraphicsCommandList->Reset(pCommandAllocator.Get(), mPipelineState.Get()));
+    d3d12::ThrowIfFailed(mGraphicsCommandList->Reset(pCommandAllocator.Get(), nullptr));
 
     auto currentBackBuffer = mSwapChainBackBuffers[mCurrentBackBuffer].Get();
 
@@ -532,15 +551,22 @@ void D3D12Shapes::Draw()
     mGraphicsCommandList->ClearDepthStencilView(
         dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
+    //! Set root signature and pipeline state
     mGraphicsCommandList->SetGraphicsRootSignature(mRootSignature.Get());
     mGraphicsCommandList->SetPipelineState(mPipelineState.Get());
     // Setup mesh render
-    auto const& ibView = mMeshBuffers->IndexBufferView();
-    auto const& vbView = mMeshBuffers->VertexBufferView();
-    mGraphicsCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    mGraphicsCommandList->IASetIndexBuffer(&ibView);
-    mGraphicsCommandList->IASetVertexBuffers(0, 1, &vbView);
-    mGraphicsCommandList->DrawIndexedInstanced(3, 1, 0, 0, 0);
+    for (int ii = 0; ii < mSceneObjects.size(); ++ii) {
+        auto const& ibView     = mSceneObjects[ii]->parentMeshBuffer->IndexBufferView();
+        auto const& vbView     = mSceneObjects[ii]->parentMeshBuffer->VertexBufferView();
+        uint32_t    indexCount = mSceneObjects[ii]->indexCount;
+        uint32_t    vertexBufferStartLocation = mSceneObjects[ii]->vertexBufferStartLocation;
+        uint32_t    indexBufferStartLocation  = mSceneObjects[ii]->indexBufferStartLocation;
+        mGraphicsCommandList->IASetIndexBuffer(&ibView);
+        mGraphicsCommandList->IASetVertexBuffers(0, 1, &vbView);
+        mGraphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        mGraphicsCommandList->DrawIndexedInstanced(indexCount, 1, indexBufferStartLocation,
+                                                   vertexBufferStartLocation, 0);
+    }
 
     CD3DX12_RESOURCE_BARRIER transitionToPresentState = CD3DX12_RESOURCE_BARRIER::Transition(
         currentBackBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -567,12 +593,8 @@ void D3D12Shapes::FlushCommandQueue()
     d3d12::ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mFenceValue));
 
     if (mFence->GetCompletedValue() < mFenceValue) {
-        HANDLE fenceEventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
-        if (!fenceEventHandle) {
-            throw std::exception("Failed to create a fence handle");
-        }
+        HANDLE fenceEventHandle = CreateEvent(nullptr, false, false, nullptr);
         logger::LOG_DEBUG("Fence completed value: %d", mFence->GetCompletedValue());
-
         d3d12::ThrowIfFailed(mFence->SetEventOnCompletion(mFenceValue, fenceEventHandle));
         WaitForSingleObject(fenceEventHandle, INFINITE);
     }
@@ -584,7 +606,6 @@ void D3D12Shapes::OnResize(int width, int height)
         return;
     }
     auto resourceIndex      = mCurrentFrameIndex % mSwapChainBufferCount;
-    resourceIndex           = 0;
     auto& pCommandAllocator = mFrameResources[resourceIndex]->pCommandAllocator;
     logger::LOG_DEBUG("%d x %d", width, height);
     //! Update client widt and height;

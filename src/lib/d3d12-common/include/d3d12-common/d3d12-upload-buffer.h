@@ -15,6 +15,7 @@ public:
     {
         mElementSize = sizeof(T);
         if (isConstantBuffer) {
+            //! Constant Buffer minimum allocation size - 256 bytes.
             mElementSize = SizeWithAlignment(sizeof(T), 256);
         }
         auto const& uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);

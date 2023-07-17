@@ -41,7 +41,6 @@ public:
 private:
     bool InitializeDeviceObjects();
     bool InitializeCommandObjects();
-    void InitializeFrameResources();
     bool InitializeSwapChain();
     bool InitializeSyncObjects();
 
@@ -51,7 +50,9 @@ private:
     void ResizeViewportAndScissorRect();
 
     // Resources
+    void InitializeFrameResources();
     void InitializeSceneGeometry();
+    void InitializeRenderItems();
     void InitializePSOs();
 
     void FlushCommandQueue();
@@ -89,9 +90,10 @@ private:
     d3d12::ID3D12FencePtr mFence;
 
     //! Resources
-    std::unique_ptr<d3d12::Mesh>  mMeshBuffers;
-    d3d12::ID3D12PipelineStatePtr mPipelineState;
-    d3d12::ID3D12RootSignaturePtr mRootSignature;
+    std::unordered_map<std::string, std::shared_ptr<d3d12::Mesh>> mMeshBuffers;
+    std::vector<std::shared_ptr<physika::RenderItem>>             mSceneObjects;
+    d3d12::ID3D12PipelineStatePtr                                 mPipelineState;
+    d3d12::ID3D12RootSignaturePtr                                 mRootSignature;
 
     std::vector<std::shared_ptr<physika::FrameResource>> mFrameResources;
     std::shared_ptr<physika::FrameResource>              mCurrentFrameResource;
