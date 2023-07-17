@@ -39,14 +39,14 @@ public:
     void OnMouseWheel(int delta) override;
 
 private:
-    bool InitializeDeviceObjects();
-    bool InitializeCommandObjects();
-    bool InitializeSwapChain();
-    bool InitializeSyncObjects();
+    void InitializeDeviceObjects();
+    void InitializeCommandObjects();
+    void InitializeSwapChain();
+    void CreateDepthStencilBuffer();
 
-    bool CreateDescriptorHeaps();
-    bool CreateRenderTargetView();
-    bool CreateDepthStencilBufferAndView();
+    void CreateDescriptorHeaps();
+    void CreateDescriptorViews();
+    void CreateRenderTargetViews();
     void ResizeViewportAndScissorRect();
 
     // Resources
@@ -73,7 +73,7 @@ private:
     d3d12::ID3D12Debug1Ptr              mD3D12DebugController;
     d3d12::ID3D12DescriptorHeapPtr      mRtvHeap;
     d3d12::ID3D12DescriptorHeapPtr      mDsvHeap;
-    d3d12::ID3D12DescriptorHeapPtr      mSRVHeap;
+    d3d12::ID3D12DescriptorHeapPtr      mCBVHeap;
 
     //! Window surface objects
     d3d12::IDXGISwapChainPtr              mSwapChain;

@@ -39,8 +39,6 @@ namespace sample {
 
 namespace dx = DirectX;
 using namespace physika;
-using namespace physika::d3d12_common;
-using namespace physika::logger;
 
 D3D12Shapes::D3D12Shapes(TCHAR const* const title, int width, int height)
     : physika::Application(title, width, height)
@@ -85,48 +83,23 @@ bool D3D12Shapes::Initialize()
     logger::SetApplicationName("D3D12 Basic");
     logger::SetLoggingLevel(logger::LogLevel::kInfo);
     PrintHeader("Initializing...");
-    if (!InitializeDeviceObjects()) {
-        logger::LOG_FATAL("Failed to create device objects");
-        return false;
-    }
+    InitializeDeviceObjects();
+    InitializeCommandObjects();
+    InitializeSwapChain();  // Swapchain depends on commandqueue.
+    CreateDepthStencilBuffer();
 
-    if (!InitializeCommandObjects()) {
-        logger::LOG_FATAL("Failed to create a Command Objects");
-        return false;
-    }
+    d3d12_common::ThrowIfFailed(
+        mD3D12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(mFence.GetAddressOf())));
 
-    if (!InitializeSwapChain()) {
-        logger::LOG_FATAL("Failed to create a SwapChain");
-        return false;
-    }
-
-    if (!InitializeSyncObjects()) {
-        logger::LOG_FATAL("Failed to create a Fence");
-    }
-
-    if (!CreateDescriptorHeaps()) {
-        logger::LOG_FATAL("Failed to create Descriptor Heaps");
-        return false;
-    }
-
-    if (!CreateRenderTargetView()) {
-        logger::LOG_FATAL("Failed to create Render Target Views");
-        return false;
-    }
-
-    if (!CreateDepthStencilBufferAndView()) {
-        logger::LOG_FATAL("Failed to create a DepthStencil Buffer and View");
-        return false;
-    }
-
-    //! Prepare commandlist for resource loading.
-
-    InitializePSOs();
     mCommandAllocator->Reset();
     mGraphicsCommandList->Reset(mCommandAllocator.Get(), nullptr);
+    InitializePSOs();
+
     InitializeSceneGeometry();
     InitializeRenderItems();
     InitializeFrameResources();
+    CreateDescriptorHeaps();
+    CreateDescriptorViews();
 
     mGraphicsCommandList->Close();
     ID3D12CommandList* commandLists[] = { mGraphicsCommandList.Get() };
@@ -139,12 +112,12 @@ bool D3D12Shapes::Initialize()
     return true;
 }
 
-bool D3D12Shapes::InitializeDeviceObjects()
+void D3D12Shapes::InitializeDeviceObjects()
 {
     UINT dxgiCreateFlags = 0;
 #ifdef _DEBUG
     dxgiCreateFlags |= DXGI_CREATE_FACTORY_DEBUG;
-    ID3D12DebugPtr dc0;
+    d3d12_common::ID3D12DebugPtr dc0;
     if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&dc0)))) {
         if (SUCCEEDED(dc0->QueryInterface(IID_PPV_ARGS(&mD3D12DebugController)))) {
             logger::LOG_INFO("Enabling Debug Layer and GPU Based Validation.");
@@ -153,10 +126,8 @@ bool D3D12Shapes::InitializeDeviceObjects()
         }
     }
 #endif
-    if (FAILED(CreateDXGIFactory2(dxgiCreateFlags, IID_PPV_ARGS(&mDXGIFactory)))) {
-        logger::LOG_ERROR("Failed to a create DXGI Factory object.");
-        return false;
-    }
+    HRESULT hr = CreateDXGIFactory2(dxgiCreateFlags, IID_PPV_ARGS(&mDXGIFactory));
+    d3d12_common::ThrowIfFailed(hr);
 
     logger::LOG_INFO("Enumerating Adapters and Initializing Graphics Device");
     bool foundDevice = false;
@@ -173,9 +144,9 @@ bool D3D12Shapes::InitializeDeviceObjects()
             continue;
         }
 
-        auto result = D3D12CreateDevice(mDXGIAdapter.Get(), D3D_FEATURE_LEVEL_12_0,
-                                        IID_PPV_ARGS(&mD3D12Device));
-        if (SUCCEEDED(result)) {
+        hr = D3D12CreateDevice(mDXGIAdapter.Get(), D3D_FEATURE_LEVEL_12_0,
+                               IID_PPV_ARGS(&mD3D12Device));
+        if (SUCCEEDED(hr)) {
             foundDevice = true;
             // D3D12 capable device available.
             break;
@@ -186,38 +157,30 @@ bool D3D12Shapes::InitializeDeviceObjects()
     if (foundDevice) {
         logger::LOG_INFO("D3D12 Device Initialized");
     }
-    return foundDevice;
 }
 
-bool D3D12Shapes::InitializeCommandObjects()
+void D3D12Shapes::InitializeCommandObjects()
 {
-    //! Initialize Command Queue
+    //! Create CommandQueue
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Flags                    = D3D12_COMMAND_QUEUE_FLAG_NONE;
     queueDesc.Type                     = D3D12_COMMAND_LIST_TYPE_DIRECT;
-    if (FAILED(mD3D12Device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&mCommandQueue)))) {
-        logger::LOG_FATAL("Failed to create command queue.");
-        return false;
-    }
+    HRESULT hr = mD3D12Device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&mCommandQueue));
+    d3d12_common::ThrowIfFailed(hr);
 
-    //! Initialize Command Allocator
-    if (FAILED(mD3D12Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                                    IID_PPV_ARGS(&mCommandAllocator)))) {
-        logger::LOG_FATAL("Failed to create command queue.");
-        return false;
-    }
+    //! Create CommandAllocator
+    hr = mD3D12Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
+                                              IID_PPV_ARGS(&mCommandAllocator));
+    d3d12_common::ThrowIfFailed(hr);
 
-    if (FAILED(mD3D12Device->CreateCommandList(
-            0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandAllocator.Get(), nullptr,
-            IID_PPV_ARGS(mGraphicsCommandList.GetAddressOf())))) {
-        return false;
-    }
-
+    //! Create CommandList
+    hr =
+        mD3D12Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandAllocator.Get(),
+                                        nullptr, IID_PPV_ARGS(mGraphicsCommandList.GetAddressOf()));
+    d3d12_common::ThrowIfFailed(hr);
     mGraphicsCommandList->Close();
 
     logger::LOG_DEBUG("Command objects successfully created.");
-
-    return true;
 }
 
 void D3D12Shapes::InitializeFrameResources()
@@ -228,7 +191,7 @@ void D3D12Shapes::InitializeFrameResources()
     }
 }
 
-bool D3D12Shapes::InitializeSwapChain()
+void D3D12Shapes::InitializeSwapChain()
 {
     PrintHeader("Setting up SwapChain");
 
@@ -253,74 +216,19 @@ bool D3D12Shapes::InitializeSwapChain()
     swapChainDesc.BufferUsage  = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     swapChainDesc.Flags        = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
-    HRESULT hr = mDXGIFactory->CreateSwapChain(mCommandQueue.Get(), &swapChainDesc, &mSwapChain);
-    if (FAILED(hr)) {
-        logger::LOG_FATAL("Failed to create a DXGI SwapChain");
-        return false;
-    }
+    HRESULT hr = mDXGIFactory->CreateSwapChain(mCommandQueue.Get(), &swapChainDesc, &mSwapChain); //TODO: Consider CreateSwapChainForHwnd
+    d3d12_common::ThrowIfFailed(hr);
 
     logger::LOG_DEBUG("Swap chain successfully created.");
-
-    return true;
 }
-
-bool D3D12Shapes::CreateDescriptorHeaps()
-{
-    PrintHeader("Setting up descriptor heaps");
-
-    D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
-    rtvHeapDesc.NumDescriptors = mSwapChainBufferCount;
-    rtvHeapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-    rtvHeapDesc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-    rtvHeapDesc.NodeMask       = 0;
-
-    HRESULT hr = mD3D12Device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&mRtvHeap));
-    if (FAILED(hr)) {
-        logger::LOG_FATAL("Failed to create Render Target Descriptor Heap");
-        return false;
-    }
-
-    D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc;
-    ;
-    dsvHeapDesc.NumDescriptors = 1;
-    dsvHeapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-    dsvHeapDesc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-    dsvHeapDesc.NodeMask       = 0;
-
-    hr = mD3D12Device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&mDsvHeap));
-    if (FAILED(hr)) {
-        logger::LOG_FATAL("Failed to create Depth Stencil Descriptor Heap");
-        return false;
-    }
-
-    logger::LOG_DEBUG("Descriptor Heap created successfully");
-
-    return true;
-}
-
-bool D3D12Shapes::CreateRenderTargetView()
-{
-    PrintHeader("Setting up Render Target Views");
-
-    for (uint32_t ii = 0; ii < mSwapChainBufferCount; ++ii) {
-        if (FAILED(mSwapChain->GetBuffer(ii, IID_PPV_ARGS(&mSwapChainBackBuffers[ii])))) {
-            logger::LOG_FATAL("Failed to get swapchain back buffer.");
-            return false;
-        }
-        auto rtvDescriptorSize =
-            mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-        auto descriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(
-            mRtvHeap->GetCPUDescriptorHandleForHeapStart(), ii, rtvDescriptorSize);
-        mD3D12Device->CreateRenderTargetView(mSwapChainBackBuffers[ii].Get(), nullptr,
-                                             descriptorHandle);
-    }
-    logger::LOG_DEBUG("Render Target Views successfully created");
-    return true;
-}
-
-bool D3D12Shapes::CreateDepthStencilBufferAndView()
+void D3D12Shapes::CreateDepthStencilBuffer()
 {
     PrintHeader("Setting up Depth/Stencil buffer and view");
+
+    // Release any existing buffers
+    if (mDepthStencilBuffer) {
+        mDepthStencilBuffer.Reset();
+    }
 
     CD3DX12_HEAP_PROPERTIES heapProperties{ D3D12_HEAP_TYPE_DEFAULT };
 
@@ -342,20 +250,69 @@ bool D3D12Shapes::CreateDepthStencilBufferAndView()
     optClearValue.Format       = desc.Format;
 
     //! Create Depth Stencil buffer
-    if (FAILED(mD3D12Device->CreateCommittedResource(
-            &heapProperties, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_DEPTH_WRITE,
-            &optClearValue, IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())))) {
-        logger::LOG_FATAL("Failed to create depth/stencil buffer");
-        return false;
-    }
+    HRESULT hr = mD3D12Device->CreateCommittedResource(
+        &heapProperties, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_DEPTH_WRITE,
+        &optClearValue, IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf()));
+    d3d12_common::ThrowIfFailed(hr);
+}
 
-    //! Create a view for the buffer
+void D3D12Shapes::CreateDescriptorHeaps()
+{
+    PrintHeader("Setting up descriptor heaps");
+
+    D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
+    rtvHeapDesc.NumDescriptors = mSwapChainBufferCount;
+    rtvHeapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+    rtvHeapDesc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    rtvHeapDesc.NodeMask       = 0;
+
+    HRESULT hr = mD3D12Device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&mRtvHeap));
+    d3d12_common::ThrowIfFailed(hr);
+
+    D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc;
+    dsvHeapDesc.NumDescriptors = 1;
+    dsvHeapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+    dsvHeapDesc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    dsvHeapDesc.NodeMask       = 0;
+
+    hr = mD3D12Device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&mDsvHeap));
+    d3d12_common::ThrowIfFailed(hr);
+
+    D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc;
+    cbvHeapDesc.NumDescriptors = mSwapChainBufferCount;
+    cbvHeapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    cbvHeapDesc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    cbvHeapDesc.NodeMask       = 0;
+    hr = mD3D12Device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&mCBVHeap));
+    d3d12_common::ThrowIfFailed(hr);
+}
+
+void D3D12Shapes::CreateDescriptorViews()
+{
+    CreateRenderTargetViews();
+}
+
+void D3D12Shapes::CreateRenderTargetViews()
+{
+    PrintHeader("Setting up Render Target Views");
+
+    for (uint32_t ii = 0; ii < mSwapChainBufferCount; ++ii) {
+        HRESULT hr = mSwapChain->GetBuffer(ii, IID_PPV_ARGS(&mSwapChainBackBuffers[ii]));
+        d3d12_common::ThrowIfFailed(hr);
+        auto rtvDescriptorSize =
+            mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+        auto descriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(
+            mRtvHeap->GetCPUDescriptorHandleForHeapStart(), ii, rtvDescriptorSize);
+        mD3D12Device->CreateRenderTargetView(mSwapChainBackBuffers[ii].Get(), nullptr,
+                                             descriptorHandle);
+    }
+    logger::LOG_DEBUG("Render Target Views successfully created");
+
+    //! Create a view for the depth/stencil buffer
     mD3D12Device->CreateDepthStencilView(mDepthStencilBuffer.Get(), nullptr,
                                          mDsvHeap->GetCPUDescriptorHandleForHeapStart());
 
     logger::LOG_DEBUG("Successfully created depth/stencil buffer and view");
-
-    return true;
 }
 
 void D3D12Shapes::ResizeViewportAndScissorRect()
@@ -368,15 +325,6 @@ void D3D12Shapes::ResizeViewportAndScissorRect()
     mViewport.MaxDepth = 1.0f;
 
     mScissorRect = { 0, 0, mWindowWidth, mWindowHeight };
-}
-
-bool D3D12Shapes::InitializeSyncObjects()
-{
-    if (FAILED(mD3D12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE,
-                                         IID_PPV_ARGS(mFence.GetAddressOf())))) {
-        return false;
-    }
-    return true;
 }
 
 void D3D12Shapes::InitializeSceneGeometry()
@@ -400,7 +348,7 @@ void D3D12Shapes::InitializeSceneGeometry()
         d3d12::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList, meshData.indices.data(),
                                    indexBufferSize);
 
-    Submesh triangleSubmesh;
+    d3d12_common::Submesh triangleSubmesh;
     triangleSubmesh.indexCount          = (uint32_t)meshData.indices.size();
     triangleSubmesh.vertexStartLocation = 0;
     triangleSubmesh.indexStartLocation  = 0;
@@ -418,7 +366,7 @@ void D3D12Shapes::InitializeRenderItems()
 {
     // Iterate the mesh buffers and create render items
     for (auto& meshIter : mMeshBuffers) {
-        Mesh* parentMesh = meshIter.second.get();
+        d3d12_common::Mesh* parentMesh = meshIter.second.get();
         for (auto& submeshIter : meshIter.second->submeshes) {
             auto renderItem = std::make_shared<RenderItem>();
             // dx::XMFLOAT3 pos = {0.0f, 0.0f, 0.0f};
@@ -437,18 +385,18 @@ void D3D12Shapes::InitializePSOs()
     rootSignatureDesc.Init(0, nullptr, 0, nullptr,
                            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-    ID3DBlobPtr signature;
-    ID3DBlobPtr error;
+    d3d12_common::ID3DBlobPtr signature;
+    d3d12_common::ID3DBlobPtr error;
     d3d12::ThrowIfFailed(D3D12SerializeRootSignature(
         &rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
     d3d12::ThrowIfFailed(mD3D12Device->CreateRootSignature(0, signature->GetBufferPointer(),
                                                            signature->GetBufferSize(),
                                                            IID_PPV_ARGS(&mRootSignature)));
 
-    ID3DBlobPtr vsByteCode = nullptr;
-    ID3DBlobPtr psByteCode = nullptr;
-    ID3DBlobPtr errors;
-    auto const  shaderPath = GetCurrentExeFullPath() / shaderHlsl;
+    d3d12_common::ID3DBlobPtr vsByteCode = nullptr;
+    d3d12_common::ID3DBlobPtr psByteCode = nullptr;
+    d3d12_common::ID3DBlobPtr errors;
+    auto const                shaderPath = GetCurrentExeFullPath() / shaderHlsl;
 
     HRESULT hr = D3DCompileFromFile(shaderPath.wstring().c_str(), nullptr, nullptr, "VSMain",
                                     "vs_5_0", 0, 0, &vsByteCode, &errors);
@@ -605,7 +553,7 @@ void D3D12Shapes::OnResize(int width, int height)
     if (!mD3D12Device) {
         return;
     }
-    auto resourceIndex      = mCurrentFrameIndex % mSwapChainBufferCount;
+    auto  resourceIndex     = mCurrentFrameIndex % mSwapChainBufferCount;
     auto& pCommandAllocator = mFrameResources[resourceIndex]->pCommandAllocator;
     logger::LOG_DEBUG("%d x %d", width, height);
     //! Update client widt and height;
@@ -628,23 +576,14 @@ void D3D12Shapes::OnResize(int width, int height)
     mSwapChain->ResizeBuffers(mSwapChainBufferCount, mWindowWidth, mWindowHeight, mBackBufferFormat,
                               DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH);
 
+    //! Reset current back buffer
     mCurrentBackBuffer = 0;
 
-    //! Recreate RenderTargetViews
-    auto rtvDescriptorSize =
-        mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
-    for (uint32_t ii = 0; ii < mSwapChainBufferCount; ++ii) {
-        d3d12::ThrowIfFailed(mSwapChain->GetBuffer(ii, IID_PPV_ARGS(&mSwapChainBackBuffers[ii])));
-        mD3D12Device->CreateRenderTargetView(mSwapChainBackBuffers[ii].Get(), nullptr,
-                                             rtvHeapHandle);
-        rtvHeapHandle.Offset(ii, rtvDescriptorSize);
-    }
+    //! Recreate Depth/Stencil buffer
+    CreateDepthStencilBuffer();
 
-    //! Recreate depth stencil buffer and view
-    if (!CreateDepthStencilBufferAndView()) {
-        logger::LOG_ERROR("Failed to recreate depth/stencil buffer view during resize");
-    }
+    //! Recreate RenderTargetViews and depth stencil buffer and view
+    CreateRenderTargetViews();
 
     d3d12::ThrowIfFailed(mGraphicsCommandList->Close());
     ID3D12CommandList* commandLists[] = { mGraphicsCommandList.Get() };
