@@ -16,7 +16,7 @@ public:
         mElementSize = sizeof(T);
         if (isConstantBuffer) {
             //! Constant Buffer minimum allocation size - 256 bytes.
-            mElementSize = SizeWithAlignment(sizeof(T), 256);
+            mElementSize = GetSizeWithAlignment(sizeof(T), 256);
         }
         auto const& uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
         mBuffer = CreateBuffer(pDevice, uploadHeapProperties, mElementSize * elementCount);
@@ -34,8 +34,8 @@ public:
 
     void CopyData(int const elementIndex, T const& elementData)
     {
-        T* dst = mMappedBuffer + elementIndex;
-        memcpy(pMappedBuffer, static_cast<void*>(&elementData), sizeof(T));
+        T* dst = mMappedBuffer + elementIndex * mElementSize;
+        memcpy(dst, &elementData, sizeof(T));
     }
 
 private:

@@ -93,13 +93,15 @@ bool D3D12Shapes::Initialize()
 
     mCommandAllocator->Reset();
     mGraphicsCommandList->Reset(mCommandAllocator.Get(), nullptr);
-    InitializePSOs();
 
     InitializeSceneGeometry();
+    InitializeSceneCamera();
     InitializeRenderItems();
     InitializeFrameResources();
     CreateDescriptorHeaps();
     CreateDescriptorViews();
+    CreateRootSignatures();
+    InitializePSOs();
 
     mGraphicsCommandList->Close();
     ID3D12CommandList* commandLists[] = { mGraphicsCommandList.Get() };
@@ -185,8 +187,9 @@ void D3D12Shapes::InitializeCommandObjects()
 
 void D3D12Shapes::InitializeFrameResources()
 {
+    uint32_t objectCount = static_cast<uint32_t>(mSceneObjects.size());
     for (uint32_t ii = 0; ii < mSwapChainBufferCount; ++ii) {
-        mFrameResources.emplace_back(std::make_shared<FrameResource>(mD3D12Device, 1));
+        mFrameResources.emplace_back(std::make_shared<FrameResource>(mD3D12Device, objectCount));
         mFrameResources[ii]->pCommandAllocator->Reset();
     }
 }
@@ -216,7 +219,8 @@ void D3D12Shapes::InitializeSwapChain()
     swapChainDesc.BufferUsage  = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     swapChainDesc.Flags        = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
-    HRESULT hr = mDXGIFactory->CreateSwapChain(mCommandQueue.Get(), &swapChainDesc, &mSwapChain); //TODO: Consider CreateSwapChainForHwnd
+    HRESULT hr = mDXGIFactory->CreateSwapChain(
+        mCommandQueue.Get(), &swapChainDesc, &mSwapChain);  // TODO: Consider CreateSwapChainForHwnd
     d3d12_common::ThrowIfFailed(hr);
 
     logger::LOG_DEBUG("Swap chain successfully created.");
@@ -290,6 +294,7 @@ void D3D12Shapes::CreateDescriptorHeaps()
 void D3D12Shapes::CreateDescriptorViews()
 {
     CreateRenderTargetViews();
+    CreateConstantBufferViews();
 }
 
 void D3D12Shapes::CreateRenderTargetViews()
@@ -315,6 +320,24 @@ void D3D12Shapes::CreateRenderTargetViews()
     logger::LOG_DEBUG("Successfully created depth/stencil buffer and view");
 }
 
+void D3D12Shapes::CreateConstantBufferViews()
+{
+    size_t perPassBufferSize = d3d12_common::GetSizeWithAlignment(
+        sizeof(physika::PerPassCBData), 256);  // CBs need to be aligned to 256 byte boundary.
+    auto cbvDescriptorSize =
+        mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+    for (uint32_t ii = 0; ii < mSwapChainBufferCount; ++ii) {
+        D3D12_CONSTANT_BUFFER_VIEW_DESC desc;
+        desc.BufferLocation =
+            mFrameResources[ii]->perPassConstantBuffer->Resource()->GetGPUVirtualAddress();
+        desc.SizeInBytes      = static_cast<UINT>(perPassBufferSize);
+        auto descriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(
+            mCBVHeap->GetCPUDescriptorHandleForHeapStart(), ii, cbvDescriptorSize);
+        mD3D12Device->CreateConstantBufferView(&desc, descriptorHandle);
+    }
+}
+
 void D3D12Shapes::ResizeViewportAndScissorRect()
 {
     mViewport.TopLeftX = 0;
@@ -325,6 +348,19 @@ void D3D12Shapes::ResizeViewportAndScissorRect()
     mViewport.MaxDepth = 1.0f;
 
     mScissorRect = { 0, 0, mWindowWidth, mWindowHeight };
+}
+
+void D3D12Shapes::InitializeSceneCamera()
+{
+    float        fov         = 60.0f;
+    float        n           = 1.0f;  // near; the two names are already taken in a windows header
+    float        f           = 1000.0f;  // far
+    float        aspectRatio = static_cast<float>(mWindowWidth) / static_cast<float>(mWindowHeight);
+    dx::XMFLOAT3 position{ 0.0f, 0.0f, -1.0f };
+    dx::XMFLOAT3 target{ 0.0f, 0.0f, 0.0f };
+    dx::XMFLOAT3 up{ 0.0f, 1.0f, 0.0f };
+
+    mCamera = std::make_shared<utility::Camera>(position, target, up, fov, n, f, aspectRatio);
 }
 
 void D3D12Shapes::InitializeSceneGeometry()
@@ -379,20 +415,29 @@ void D3D12Shapes::InitializeRenderItems()
         }
     }
 }
-void D3D12Shapes::InitializePSOs()
+
+void D3D12Shapes::CreateRootSignatures()
 {
-    CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    rootSignatureDesc.Init(0, nullptr, 0, nullptr,
-                           D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    CD3DX12_DESCRIPTOR_RANGE1 cbvRange;
+    cbvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1 /*num*/, 0 /*baseRegister*/, 0 /*space*/);
+
+    CD3DX12_ROOT_PARAMETER1 rootParameters[1];
+    rootParameters[0].InitAsDescriptorTable(1, &cbvRange, D3D12_SHADER_VISIBILITY_ALL);
+
+    CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
+    rootSignatureDesc.Init_1_1(1, rootParameters, 0, nullptr,
+                               D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     d3d12_common::ID3DBlobPtr signature;
     d3d12_common::ID3DBlobPtr error;
-    d3d12::ThrowIfFailed(D3D12SerializeRootSignature(
-        &rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+    d3d12::ThrowIfFailed(
+        D3D12SerializeVersionedRootSignature(&rootSignatureDesc, &signature, &error));
     d3d12::ThrowIfFailed(mD3D12Device->CreateRootSignature(0, signature->GetBufferPointer(),
                                                            signature->GetBufferSize(),
                                                            IID_PPV_ARGS(&mRootSignature)));
-
+}
+void D3D12Shapes::InitializePSOs()
+{
     d3d12_common::ID3DBlobPtr vsByteCode = nullptr;
     d3d12_common::ID3DBlobPtr psByteCode = nullptr;
     d3d12_common::ID3DBlobPtr errors;
@@ -468,6 +513,11 @@ void D3D12Shapes::Update()
         WaitForSingleObject(eventHandle, INFINITE);
         CloseHandle(eventHandle);
     }
+
+    //! Update Camera matrix
+    mPerPassCBData.mvp = mCamera->Matrix();
+    mCurrentFrameResource->perPassConstantBuffer->CopyData(0, mPerPassCBData);
+
     mTimer.Tick();
 }
 
@@ -489,6 +539,22 @@ void D3D12Shapes::Draw()
                                                     mCurrentBackBuffer, rtvDescriptorSize);
     auto dsv        = mDsvHeap->GetCPUDescriptorHandleForHeapStart();
     mGraphicsCommandList->OMSetRenderTargets(1, &currentRTV, true, &dsv);
+    //! Set root signature and pipeline state
+    mGraphicsCommandList->SetGraphicsRootSignature(mRootSignature.Get());
+    mGraphicsCommandList->SetPipelineState(mPipelineState.Get());
+
+    //! Set Descriptor Heap
+    ID3D12DescriptorHeap* descriptorHeaps[] = { mCBVHeap.Get() };
+    mGraphicsCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+    //! Set Root Descriptor
+    int  resourceIndex = static_cast<int>(mCurrentFrameIndex % mSwapChainBufferCount);
+    auto cbvDescriptorSize =
+        mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    auto gpuDescriptorHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(
+        mCBVHeap->GetGPUDescriptorHandleForHeapStart(), resourceIndex, cbvDescriptorSize);
+    mGraphicsCommandList->SetGraphicsRootDescriptorTable(0, gpuDescriptorHandle);
+
     //! Set Viewport and ScissorRect
     mGraphicsCommandList->RSSetViewports(1, &mViewport);
     mGraphicsCommandList->RSSetScissorRects(1, &mScissorRect);
@@ -499,9 +565,6 @@ void D3D12Shapes::Draw()
     mGraphicsCommandList->ClearDepthStencilView(
         dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
-    //! Set root signature and pipeline state
-    mGraphicsCommandList->SetGraphicsRootSignature(mRootSignature.Get());
-    mGraphicsCommandList->SetPipelineState(mPipelineState.Get());
     // Setup mesh render
     for (int ii = 0; ii < mSceneObjects.size(); ++ii) {
         auto const& ibView     = mSceneObjects[ii]->parentMeshBuffer->IndexBufferView();

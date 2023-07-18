@@ -12,8 +12,8 @@ FrameResource::FrameResource(d3d12_common::ID3D12DevicePtr pDevice, uint32_t con
     fenceIndex = 0;
     d3d12_common::ThrowIfFailed(pDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
                                                                 IID_PPV_ARGS(&pCommandAllocator)));
-    perObjectCB =
-        std::make_unique<d3d12_common::UploadBuffer<PerObjectCBData>>(pDevice, objectCount, true);
+    perPassConstantBuffer =
+        std::make_unique<d3d12_common::UploadBuffer<PerPassCBData>>(pDevice, objectCount, true);
 }
 
 }  // namespace physika

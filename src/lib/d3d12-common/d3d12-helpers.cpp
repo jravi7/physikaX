@@ -9,7 +9,7 @@
 namespace physika {
 namespace d3d12_common {
 
-uint64_t SizeWithAlignment(uint64_t const byteSize, uint64_t const alignment)
+uint64_t GetSizeWithAlignment(uint64_t const byteSize, uint64_t const alignment)
 {
     return ((byteSize + alignment - 1) / alignment) * alignment;
 }
@@ -82,8 +82,8 @@ OutputBuffer CreateOutputBuffer(ID3D12DevicePtr pDevice, uint64_t const byteSize
         return { nullptr, nullptr };
     }
 
-    ID3D12ResourcePtr gpuBuffer    = nullptr;
-    ID3D12ResourcePtr uploadBuffer = nullptr;
+    ID3D12ResourcePtr gpuBuffer      = nullptr;
+    ID3D12ResourcePtr readbackBuffer = nullptr;
 
     auto const& defaultHeapProperties  = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     auto const& readbackHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
@@ -97,9 +97,9 @@ OutputBuffer CreateOutputBuffer(ID3D12DevicePtr pDevice, uint64_t const byteSize
     //! changed away from this.
     ThrowIfFailed(pDevice->CreateCommittedResource(
         &readbackHeapProperties, D3D12_HEAP_FLAG_NONE, &bufferDesc, D3D12_RESOURCE_STATE_COPY_DEST,
-        nullptr, IID_PPV_ARGS(uploadBuffer.GetAddressOf())));
+        nullptr, IID_PPV_ARGS(readbackBuffer.GetAddressOf())));
 
-    return { gpuBuffer, uploadBuffer };
+    return { gpuBuffer, readbackBuffer };
 }
 
 }  // namespace d3d12_common

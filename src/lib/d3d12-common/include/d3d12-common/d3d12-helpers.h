@@ -29,13 +29,14 @@ ID3D12ResourcePtr CreateBuffer(ID3D12DevicePtr pDevice, D3D12_HEAP_PROPERTIES co
                                uint64_t const size);
 
 //! @brief Creates a default GPU Buffer and Upload Heap buffer with initial data.
-//! @out
 DefaultGPUBuffer CreateDefaultBuffer(ID3D12DevicePtr pDevice, ID3D12GraphicsCommandListPtr pCmdlist,
                                      void const* initialData, uint64_t const byteSize);
 
+//! @brief create a default GPU buffer and a readback buffer
 OutputBuffer CreateOutputBuffer(ID3D12DevicePtr device, uint64_t const byteSize);
 
-uint64_t SizeWithAlignment(uint64_t const byteSize, uint64_t const alignment);
+//! @brief Calculate size in bytes with given alignment
+uint64_t GetSizeWithAlignment(uint64_t const byteSize, uint64_t const alignment);
 
 struct Submesh
 {

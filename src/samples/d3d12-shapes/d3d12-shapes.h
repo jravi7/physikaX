@@ -13,6 +13,7 @@
 #include "d3d12-common/d3d12-helpers.h"
 #include "frame-resource.h"
 #include "timer/timer.h"
+#include "utility/camera.h"
 
 namespace sample {
 
@@ -41,18 +42,22 @@ public:
 private:
     void InitializeDeviceObjects();
     void InitializeCommandObjects();
+
+    // RTs
     void InitializeSwapChain();
     void CreateDepthStencilBuffer();
 
+    // Resources
+    void InitializeSceneCamera();
+    void InitializeSceneGeometry();
+    void InitializeFrameResources();
+    void InitializeRenderItems();
     void CreateDescriptorHeaps();
     void CreateDescriptorViews();
+    void CreateConstantBufferViews();
     void CreateRenderTargetViews();
     void ResizeViewportAndScissorRect();
-
-    // Resources
-    void InitializeFrameResources();
-    void InitializeSceneGeometry();
-    void InitializeRenderItems();
+    void CreateRootSignatures();
     void InitializePSOs();
 
     void FlushCommandQueue();
@@ -90,13 +95,16 @@ private:
     d3d12::ID3D12FencePtr mFence;
 
     //! Resources
-    std::unordered_map<std::string, std::shared_ptr<d3d12::Mesh>> mMeshBuffers;
-    std::vector<std::shared_ptr<physika::RenderItem>>             mSceneObjects;
-    d3d12::ID3D12PipelineStatePtr                                 mPipelineState;
-    d3d12::ID3D12RootSignaturePtr                                 mRootSignature;
-
+    d3d12::ID3D12PipelineStatePtr                        mPipelineState;
+    d3d12::ID3D12RootSignaturePtr                        mRootSignature;
     std::vector<std::shared_ptr<physika::FrameResource>> mFrameResources;
     std::shared_ptr<physika::FrameResource>              mCurrentFrameResource;
+
+    //! Scene resources
+    physika::PerPassCBData                                        mPerPassCBData;
+    std::unordered_map<std::string, std::shared_ptr<d3d12::Mesh>> mMeshBuffers;
+    std::vector<std::shared_ptr<physika::RenderItem>>             mSceneObjects;
+    std::shared_ptr<physika::utility::Camera>                     mCamera;
 };
 
 }  // namespace sample
