@@ -1,7 +1,7 @@
 Physika X
 ===========
 
-Physika X is an amalgamation of Direct3D 12 based samples and utility libraries for making quick graphics rendering prototypes. X stands for experimental i.e., the samples found here are for educational purposes. 
+Physika X is an amalgamation of Direct3D 12 based samples and utility libraries for making quick graphics rendering prototypes. X stands for experiments. The samples found here are for educational purposes only.  
 
 
 References
