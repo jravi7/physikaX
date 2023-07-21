@@ -17,16 +17,12 @@ MeshData CreateEquilateralTriangle(float const side)
     if (std::abs(side - 0.0f) < std::numeric_limits<float>::epsilon()) {
         return meshData;
     }
-    meshData.vertices.push_back(
-        { XMFLOAT3(side * 0.5f, -side * 0.5f, 0.0f), XMFLOAT4(Colors::Blue) });
-    meshData.vertices.push_back({ XMFLOAT3(0, side * 0.5f, 0.0f), XMFLOAT4(Colors::Green) });
-    meshData.vertices.push_back(
-        { XMFLOAT3(-side * 0.5f, -side * 0.5f, 0.0f), XMFLOAT4(Colors::Magenta) });
+    float halfSide    = side * 0.5f;
+    meshData.vertices = { { XMFLOAT3(halfSide, -halfSide, 0.0f), XMFLOAT4(Colors::Blue) },
+                          { XMFLOAT3(0, halfSide, 0.0f), XMFLOAT4(Colors::Green) },
+                          { XMFLOAT3(-halfSide, -halfSide, 0.0f), XMFLOAT4(Colors::Red) } };
 
-    meshData.indices.push_back(0);
-    meshData.indices.push_back(1);
-    meshData.indices.push_back(2);
-
+    meshData.indices = { 0, 1, 2 };
     return meshData;
 }
 MeshData CreateCube(float const side)
@@ -35,66 +31,46 @@ MeshData CreateCube(float const side)
     if (std::abs(side - 0.0f) < std::numeric_limits<float>::epsilon()) {
         return meshData;
     }
-
-    meshData.vertices.push_back(
-        { XMFLOAT3(side * 0.5f, side * 0.5f, side * 0.5f), XMFLOAT4(Colors::Blue) });
-    meshData.vertices.push_back(
-        { XMFLOAT3(-side * 0.5f, side * 0.5f, side * 0.5f), XMFLOAT4(Colors::Blue) });
-    meshData.vertices.push_back(
-        { XMFLOAT3(-side * 0.5f, -side * 0.5f, side * 0.5f), XMFLOAT4(Colors::Blue) });
-    meshData.vertices.push_back(
-        { XMFLOAT3(side * 0.5f, -side * 0.5f, side * 0.5f), XMFLOAT4(Colors::Blue) });
-    meshData.vertices.push_back(
-        { XMFLOAT3(side * 0.5f, side * 0.5f, -side * 0.5f), XMFLOAT4(Colors::Blue) });
-    meshData.vertices.push_back(
-        { XMFLOAT3(-side * 0.5f, side * 0.5f, -side * 0.5f), XMFLOAT4(Colors::Blue) });
-    meshData.vertices.push_back(
-        { XMFLOAT3(-side * 0.5f, -side * 0.5f, -side * 0.5f), XMFLOAT4(Colors::Blue) });
-    meshData.vertices.push_back(
-        { XMFLOAT3(side * 0.5f, -side * 0.5f, -side * 0.5f), XMFLOAT4(Colors::Blue) });
+    float halfSide    = side * 0.5f;
+    meshData.vertices = {
+        { XMFLOAT3(halfSide, halfSide, halfSide), XMFLOAT4(Colors::Blue) },
+        { XMFLOAT3(-halfSide, halfSide, halfSide), XMFLOAT4(Colors::Green) },
+        { XMFLOAT3(-halfSide, -halfSide, halfSide), XMFLOAT4(Colors::Red) },
+        { XMFLOAT3(halfSide, -halfSide, halfSide), XMFLOAT4(Colors::Yellow) },
+        { XMFLOAT3(halfSide, halfSide, -halfSide), XMFLOAT4(Colors::ForestGreen) },
+        { XMFLOAT3(-halfSide, halfSide, -halfSide), XMFLOAT4(Colors::LightGoldenrodYellow) },
+        { XMFLOAT3(-halfSide, -halfSide, -halfSide), XMFLOAT4(Colors::Cyan) },
+        { XMFLOAT3(halfSide, -halfSide, -halfSide), XMFLOAT4(Colors::Magenta) }
+    };
 
     // add face
-    meshData.indices.push_back(0);
-    meshData.indices.push_back(1);
-    meshData.indices.push_back(2);
-    meshData.indices.push_back(0);
-    meshData.indices.push_back(2);
-    meshData.indices.push_back(3);
+    /*
+     * g +------+ b
+     *   |      |
+     *   |      |
+     * r +------+ y
+     */
+    // clang-format off
+    meshData.indices = {
+        0, 1, 2, 
+        0, 2, 3,
 
-    meshData.indices.push_back(4);
-    meshData.indices.push_back(5);
-    meshData.indices.push_back(1);
-    meshData.indices.push_back(4);
-    meshData.indices.push_back(1);
-    meshData.indices.push_back(0);
+        4, 5, 1, 
+        4, 1, 0,
 
-    meshData.indices.push_back(4);
-    meshData.indices.push_back(0);
-    meshData.indices.push_back(3);
-    meshData.indices.push_back(4);
-    meshData.indices.push_back(3);
-    meshData.indices.push_back(7);
+        4, 0, 3, 
+        4, 3, 7,
 
-    meshData.indices.push_back(5);
-    meshData.indices.push_back(4);
-    meshData.indices.push_back(7);
-    meshData.indices.push_back(5);
-    meshData.indices.push_back(7);
-    meshData.indices.push_back(6);
+        5, 4, 7, 
+        5, 7, 6,
 
-    meshData.indices.push_back(1);
-    meshData.indices.push_back(5);
-    meshData.indices.push_back(6);
-    meshData.indices.push_back(1);
-    meshData.indices.push_back(6);
-    meshData.indices.push_back(2);
+        1, 5, 6, 
+        1, 6, 2,
 
-    meshData.indices.push_back(3);
-    meshData.indices.push_back(2);
-    meshData.indices.push_back(6);
-    meshData.indices.push_back(3);
-    meshData.indices.push_back(6);
-    meshData.indices.push_back(7);
+        3, 2, 6, 
+        3, 6, 7,
+    };
+    // clang-format on
 
     return meshData;
 }
