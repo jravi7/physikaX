@@ -27,6 +27,7 @@ find_package(gtest)
 find_package(glfw)
 find_package(D3D12)
 find_package(D3D11)
+find_package(directxtk12)
 
 # Root source directory
 add_subdirectory(src)
