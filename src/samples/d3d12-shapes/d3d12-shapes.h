@@ -64,6 +64,8 @@ private:
     void Update();
     void Draw();
 
+    void ProcessKeyStates();
+
     uint32_t    mSwapChainBufferCount;
     uint32_t    mCurrentBackBuffer;
     DXGI_FORMAT mBackBufferFormat;
@@ -104,7 +106,10 @@ private:
     physika::PerPassCBData                                        mPerPassCBData;
     std::unordered_map<std::string, std::shared_ptr<d3d12::Mesh>> mMeshBuffers;
     std::vector<std::shared_ptr<physika::RenderItem>>             mSceneObjects;
-    std::shared_ptr<physika::utility::Camera>                     mCamera;
+    physika::utility::Camera                                      mCamera;
+
+    //! Input
+    bool mKeyStates[physika::kKeyCodeCount] = {};
 };
 
 }  // namespace sample

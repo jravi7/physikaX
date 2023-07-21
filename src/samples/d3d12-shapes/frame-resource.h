@@ -20,7 +20,7 @@ struct RenderItem
     uint32_t            indexCount                = 0;
     uint32_t            vertexBufferStartLocation = 0;
     uint32_t            indexBufferStartLocation  = 0;
-    d3d12_common::Mesh* parentMeshBuffer          = nullptr;
+    d3d12_common::Mesh* geometryBuffer            = nullptr;
     DirectX::XMFLOAT4X4 worldMatrix;
 };
 

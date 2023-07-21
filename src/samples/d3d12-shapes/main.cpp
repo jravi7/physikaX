@@ -6,7 +6,7 @@
 
 int main()
 {
-    sample::D3D12Shapes app(_T("D3D12 Basic"), 1920, 1080);
+    sample::D3D12Shapes app(_T("D3D12 Shapes"), 1920, 1080);
 
     if (!app.Initialize()) {
         printf("Could not initialize app. Exiting");

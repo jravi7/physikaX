@@ -353,14 +353,15 @@ void D3D12Shapes::ResizeViewportAndScissorRect()
 void D3D12Shapes::InitializeSceneCamera()
 {
     float        fov         = 60.0f;
-    float        n           = 1.0f;  // near; the two names are already taken in a windows header
+    float        n           = 1.0f;    // near; the two names are already taken in a windows header
     float        f           = 1000.0f;  // far
     float        aspectRatio = static_cast<float>(mWindowWidth) / static_cast<float>(mWindowHeight);
-    dx::XMFLOAT3 position{ 0.0f, 0.0f, -1.0f };
+    dx::XMFLOAT3 position{ 0.0f, 0.0f, -20.0f };
     dx::XMFLOAT3 target{ 0.0f, 0.0f, 0.0f };
     dx::XMFLOAT3 up{ 0.0f, 1.0f, 0.0f };
 
-    mCamera = std::make_shared<utility::Camera>(position, target, up, fov, n, f, aspectRatio);
+    mCamera.SetCameraProperties(n, f, fov, aspectRatio);
+    mCamera.SetLookAt(target, up, position);
 }
 
 void D3D12Shapes::InitializeSceneGeometry()
@@ -369,7 +370,7 @@ void D3D12Shapes::InitializeSceneGeometry()
     auto shapesBuffer  = std::make_shared<d3d12::Mesh>();
     shapesBuffer->name = "Shapes Buffer";
 
-    common::MeshData meshData = common::CreateEquilateralTriangle(1);
+    common::MeshData meshData = common::CreateCube(10);
 
     auto const vertexBufferSize =
         static_cast<uint32_t>(meshData.vertices.size() * meshData.PerVertexDataSize());
@@ -402,12 +403,12 @@ void D3D12Shapes::InitializeRenderItems()
 {
     // Iterate the mesh buffers and create render items
     for (auto& meshIter : mMeshBuffers) {
-        d3d12_common::Mesh* parentMesh = meshIter.second.get();
+        d3d12_common::Mesh* geo = meshIter.second.get();
         for (auto& submeshIter : meshIter.second->submeshes) {
             auto renderItem = std::make_shared<RenderItem>();
             // dx::XMFLOAT3 pos = {0.0f, 0.0f, 0.0f};
             dx::XMStoreFloat4x4(&renderItem->worldMatrix, dx::XMMatrixIdentity());
-            renderItem->parentMeshBuffer          = parentMesh;
+            renderItem->geometryBuffer            = geo;
             renderItem->indexBufferStartLocation  = submeshIter.second.indexStartLocation;
             renderItem->vertexBufferStartLocation = submeshIter.second.vertexStartLocation;
             renderItem->indexCount                = submeshIter.second.indexCount;
@@ -471,14 +472,15 @@ void D3D12Shapes::InitializePSOs()
     psoDesc.PS                                 = CD3DX12_SHADER_BYTECODE(psByteCode.Get());
     auto rasterState                           = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     rasterState.FrontCounterClockwise          = true;
+    rasterState.CullMode                       = D3D12_CULL_MODE_FRONT;
     psoDesc.RasterizerState                    = rasterState;
     psoDesc.BlendState                         = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-    psoDesc.DepthStencilState.DepthEnable      = FALSE;
-    psoDesc.DepthStencilState.StencilEnable    = FALSE;
+    psoDesc.DepthStencilState                  = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
     psoDesc.SampleMask                         = UINT_MAX;
     psoDesc.PrimitiveTopologyType              = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     psoDesc.NumRenderTargets                   = mSwapChainBufferCount;
     psoDesc.RTVFormats[0]                      = DXGI_FORMAT_R8G8B8A8_UNORM;
+    psoDesc.DSVFormat                          = DXGI_FORMAT_D24_UNORM_S8_UINT;
     psoDesc.SampleDesc.Count                   = 1;
     d3d12::ThrowIfFailed(
         mD3D12Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&mPipelineState)));
@@ -496,6 +498,7 @@ bool D3D12Shapes::Shutdown()
 
 void D3D12Shapes::OnUpdate()
 {
+    ProcessKeyStates();
     Update();
     Draw();
 }
@@ -515,7 +518,7 @@ void D3D12Shapes::Update()
     }
 
     //! Update Camera matrix
-    mPerPassCBData.mvp = mCamera->Matrix();
+    mPerPassCBData.mvp = mCamera.ViewProjection().Transpose();
     mCurrentFrameResource->perPassConstantBuffer->CopyData(0, mPerPassCBData);
 
     mTimer.Tick();
@@ -567,8 +570,8 @@ void D3D12Shapes::Draw()
 
     // Setup mesh render
     for (int ii = 0; ii < mSceneObjects.size(); ++ii) {
-        auto const& ibView     = mSceneObjects[ii]->parentMeshBuffer->IndexBufferView();
-        auto const& vbView     = mSceneObjects[ii]->parentMeshBuffer->VertexBufferView();
+        auto const& ibView     = mSceneObjects[ii]->geometryBuffer->IndexBufferView();
+        auto const& vbView     = mSceneObjects[ii]->geometryBuffer->VertexBufferView();
         uint32_t    indexCount = mSceneObjects[ii]->indexCount;
         uint32_t    vertexBufferStartLocation = mSceneObjects[ii]->vertexBufferStartLocation;
         uint32_t    indexBufferStartLocation  = mSceneObjects[ii]->indexBufferStartLocation;
@@ -657,28 +660,61 @@ void D3D12Shapes::OnResize(int width, int height)
     ResizeViewportAndScissorRect();
 }
 
-void D3D12Shapes::OnKeyUp(Keycode /*key*/)
+void D3D12Shapes::OnKeyUp(Keycode key)
 {
+    mKeyStates[key] = false;
 }
 
-void D3D12Shapes::OnKeyDown(Keycode /*key*/)
+void D3D12Shapes::OnKeyDown(Keycode key)
 {
+    mKeyStates[key] = true;
 }
 
 void D3D12Shapes::OnMouseUp(MouseButton /*button*/, int /*x*/, int /*y*/)
 {
+    mCamera.OnMouseUp();
 }
 
 void D3D12Shapes::OnMouseDown(MouseButton /*button*/, int /*x*/, int /*y*/)
 {
+    mCamera.OnMouseDown();
 }
 
-void D3D12Shapes::OnMouseMove(int /*x*/, int /*y*/)
+void D3D12Shapes::OnMouseMove(int x, int y)
 {
+    (void)x;
+    (void)y;
+    // mCamera.OnMouseMove(static_cast<float>(x), static_cast<float>(y));
 }
 
 void D3D12Shapes::OnMouseWheel(int /*delta*/)
 {
+}
+
+void D3D12Shapes::ProcessKeyStates()
+{
+    using namespace utility;
+
+    DirectX::SimpleMath::Vector3 offset   = mCamera.Position();
+    float                        velocity = 10.0f * mTimer.Delta();
+
+    if (mKeyStates[kA]) {
+        offset += -velocity * mCamera.Right();
+    }
+
+    if (mKeyStates[kD]) {
+        offset += velocity * mCamera.Right();
+    }
+
+    if (mKeyStates[kS]) {
+        offset += velocity * mCamera.Forward();
+    }
+
+    if (mKeyStates[kW]) {
+        offset += -velocity * mCamera.Forward();
+    }
+
+    mCamera.SetPosition(offset);
 }
 
 }  // namespace sample
