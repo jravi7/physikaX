@@ -2,6 +2,7 @@
 #include "app-framework/application-win32.h"
 
 #include <assert.h>
+#include <crtdbg.h>
 #include <stdio.h>
 #include <windows.h>
 
@@ -284,6 +285,10 @@ ApplicationWin32::ApplicationWin32(TCHAR const* const title, int width, int heig
 
 bool ApplicationWin32::Initialize()
 {
+#ifdef _DEBUG
+    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+#endif
+
     sApp                  = this;
     mHinstance            = GetModuleHandle(nullptr);
     TCHAR szWindowClass[] = _T("win32app");
