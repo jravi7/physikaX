@@ -21,6 +21,14 @@ using physika::Keycode;
 using physika::MouseButton;
 namespace d3d12 = physika::d3d12_common;
 
+struct InputStates
+{
+    bool  isMouseDown                      = {};
+    bool  keyState[physika::kKeyCodeCount] = {};
+    float mouseX                           = {};
+    float mouseY                           = {};
+};
+
 class D3D12Shapes : public physika::Application
 {
 public:
@@ -109,7 +117,8 @@ private:
     physika::utility::Camera                                      mCamera;
 
     //! Input
-    bool mKeyStates[physika::kKeyCodeCount] = {};
+    InputStates mInputStates;
+    // bool mKeyStates[physika::kKeyCodeCount] = {};
 };
 
 }  // namespace sample

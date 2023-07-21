@@ -1,15 +1,6 @@
 #include "utility/camera.h"
 
-namespace {
-
-double const kPI = 3.14159265358979323846;
-
-float RadiansToDeg(float radians)
-{
-    return radians * 180 / (float)kPI;
-}
-
-}  // namespace
+#include <algorithm>
 
 namespace physika::utility {
 
@@ -17,11 +8,19 @@ using namespace DirectX;
 using namespace DirectX::SimpleMath;
 
 Camera::Camera()
-    : mPosition(), mTarget(), mUp(), mFovY(0.0f), mNear(0.0f), mFar(0.0f), mAspectRatio(0.0f)
+    : mFovY(0.0f),
+      mNear(0.0f),
+      mFar(0.0f),
+      mAspectRatio(0.0f),
+      mRotationX(0.0f),
+      mRotationY(0.0f),
+      mPosition(Vector3()),
+      mTarget(Vector3()),
+      mUp(Vector3()),
+      mProjection(Matrix()),
+      mView(Matrix()),
+      mWorldMatrix(Matrix())
 {
-    mProjection  = Matrix();
-    mView        = Matrix();
-    mWorldMatrix = Matrix();
 }
 
 void Camera::SetPosition(DirectX::SimpleMath::Vector3 const& position)
@@ -30,25 +29,38 @@ void Camera::SetPosition(DirectX::SimpleMath::Vector3 const& position)
     mWorldMatrix.Translation(mPosition);
     WorldMatrixChanged();
 }
-void Camera::SetXRotation(float angle)
+void Camera::SetXRotation(float radians)
 {
-    mRotX = angle;
+    mRotationX = std::clamp(radians, -XM_PIDIV2, XM_PIDIV2);
+    Quaternion orientation =
+        Quaternion(DirectX::XMQuaternionRotationRollPitchYaw(mRotationX, mRotationY, 0));
+    mWorldMatrix = Matrix::CreateFromQuaternion(orientation);
+    mWorldMatrix.Translation(mPosition);
+    WorldMatrixChanged();
 }
-void Camera::SetYRotation(float angle)
+void Camera::SetYRotation(float radians)
 {
-    mRotY = angle;
+    mRotationY = DirectX::XMScalarModAngle(radians);
+    Quaternion orientation =
+        Quaternion(DirectX::XMQuaternionRotationRollPitchYaw(mRotationX, mRotationY, 0));
+
+    mWorldMatrix = Matrix::CreateFromQuaternion(orientation);
+    mWorldMatrix.Translation(mPosition);
+    WorldMatrixChanged();
+}
+
+float Camera::XRotation()
+{
+    return mRotationX;
+}
+float Camera::YRotation()
+{
+    return mRotationY;
 }
 
 void Camera::WorldMatrixChanged()
 {
     mView = mWorldMatrix.Invert();
-    Vector3    scale;
-    Quaternion orientation;
-    Vector3    translation;
-    assert(mWorldMatrix.Decompose(scale, orientation, translation) &&
-           "Malformed Camera WorldMatrix");
-
-    Vector3 euler;
 }
 
 void Camera::SetLookAt(DirectX::SimpleMath::Vector3 const& target,
@@ -71,6 +83,16 @@ void Camera::SetLookAt(DirectX::SimpleMath::Vector3 const& target,
     DirectX::XMMATRIX viewSIMD = DirectX::XMMatrixLookAtLH(positionSIMD, targetSIMD, upSIMD);
     XMStoreFloat4x4(&mView, viewSIMD);
     mWorldMatrix = mView.Invert();
+
+    Vector3    scale;
+    Quaternion orientation;
+    Vector3    translation;
+    assert(mWorldMatrix.Decompose(scale, orientation, translation) &&
+           "Malformed Camera WorldMatrix");
+
+    Vector3 euler = orientation.ToEuler();
+    mRotationX    = euler.x;
+    mRotationY    = euler.y;
 
     // Leaving this as a reference.
     // // Row Major LHS
@@ -117,12 +139,6 @@ Matrix Camera::ViewProjection()
     return mView * mProjection;
 }
 
-void Camera::OffsetPosition(Vector3 const& offset)
-{
-    mPosition += offset;
-    mWorldMatrix.Translation(mPosition);
-}
-
 Vector3 Camera::Position()
 {
     return mPosition;
@@ -139,24 +155,6 @@ Vector3 Camera::Forward()
 Vector3 Camera::Right()
 {
     return mWorldMatrix.Right();
-}
-
-void Camera::OnMouseUp()
-{
-    mIsMouseDown = false;
-}
-void Camera::OnMouseDown()
-{
-    mIsMouseDown = true;
-}
-void Camera::OnMouseMove(float x, float y)
-{
-    float dx = (x - mX);
-    float dy = (y - mY);
-    mX       = x;
-    mY       = y;
-    (void)dx;
-    (void)dy;
 }
 
 }  // namespace physika::utility

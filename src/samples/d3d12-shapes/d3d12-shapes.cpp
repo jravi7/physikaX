@@ -82,6 +82,7 @@ bool D3D12Shapes::Initialize()
 
     logger::SetApplicationName("D3D12 Basic");
     logger::SetLoggingLevel(logger::LogLevel::kInfo);
+
     PrintHeader("Initializing...");
     InitializeDeviceObjects();
     InitializeCommandObjects();
@@ -353,10 +354,10 @@ void D3D12Shapes::ResizeViewportAndScissorRect()
 void D3D12Shapes::InitializeSceneCamera()
 {
     float        fov         = 60.0f;
-    float        n           = 1.0f;    // near; the two names are already taken in a windows header
+    float        n           = 1.0f;  // near; the two names are already taken in a windows header
     float        f           = 1000.0f;  // far
     float        aspectRatio = static_cast<float>(mWindowWidth) / static_cast<float>(mWindowHeight);
-    dx::XMFLOAT3 position{ 0.0f, 0.0f, -20.0f };
+    dx::XMFLOAT3 position{ 20.0f, 0.0f, -20.0f };
     dx::XMFLOAT3 target{ 0.0f, 0.0f, 0.0f };
     dx::XMFLOAT3 up{ 0.0f, 1.0f, 0.0f };
 
@@ -662,29 +663,42 @@ void D3D12Shapes::OnResize(int width, int height)
 
 void D3D12Shapes::OnKeyUp(Keycode key)
 {
-    mKeyStates[key] = false;
+    mInputStates.keyState[key] = false;
 }
 
 void D3D12Shapes::OnKeyDown(Keycode key)
 {
-    mKeyStates[key] = true;
+    mInputStates.keyState[key] = true;
 }
 
 void D3D12Shapes::OnMouseUp(MouseButton /*button*/, int /*x*/, int /*y*/)
 {
-    mCamera.OnMouseUp();
+    mInputStates.isMouseDown = false;
 }
 
 void D3D12Shapes::OnMouseDown(MouseButton /*button*/, int /*x*/, int /*y*/)
 {
-    mCamera.OnMouseDown();
+    mInputStates.isMouseDown = true;
 }
 
 void D3D12Shapes::OnMouseMove(int x, int y)
 {
-    (void)x;
-    (void)y;
-    // mCamera.OnMouseMove(static_cast<float>(x), static_cast<float>(y));
+    if (mInputStates.isMouseDown) {
+        float angularVelocity = 10.0f * mTimer.Delta();
+        float xRotDeg         = DirectX::XMConvertToDegrees(mCamera.XRotation());
+        float yRotDeg         = DirectX::XMConvertToDegrees(mCamera.YRotation());
+
+        float dx = static_cast<float>(x) - mInputStates.mouseX;
+        float dy = static_cast<float>(y) - mInputStates.mouseY;
+
+        xRotDeg += dy * angularVelocity;
+        yRotDeg += dx * angularVelocity;
+
+        mCamera.SetXRotation(DirectX::XMConvertToRadians(xRotDeg));
+        mCamera.SetYRotation(DirectX::XMConvertToRadians(yRotDeg));
+    }
+    mInputStates.mouseX = static_cast<float>(x);
+    mInputStates.mouseY = static_cast<float>(y);
 }
 
 void D3D12Shapes::OnMouseWheel(int /*delta*/)
@@ -698,19 +712,19 @@ void D3D12Shapes::ProcessKeyStates()
     DirectX::SimpleMath::Vector3 offset   = mCamera.Position();
     float                        velocity = 10.0f * mTimer.Delta();
 
-    if (mKeyStates[kA]) {
+    if (mInputStates.keyState[kA]) {
         offset += -velocity * mCamera.Right();
     }
 
-    if (mKeyStates[kD]) {
+    if (mInputStates.keyState[kD]) {
         offset += velocity * mCamera.Right();
     }
 
-    if (mKeyStates[kS]) {
+    if (mInputStates.keyState[kS]) {
         offset += velocity * mCamera.Forward();
     }
 
-    if (mKeyStates[kW]) {
+    if (mInputStates.keyState[kW]) {
         offset += -velocity * mCamera.Forward();
     }
 

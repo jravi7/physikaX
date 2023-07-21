@@ -1,3 +1,6 @@
+// Based on TheRealMJP's Camera
+// https://github.com/TheRealMJP/DXRPathTracer/blob/master/SampleFramework12/v1.02/Graphics/Camera.cpp
+
 #pragma once
 
 #include <DirectXMath.h>
@@ -7,15 +10,17 @@ namespace physika::utility {
 class Camera
 {
 public:
-    enum class Direction { RIGHT, LEFT, FRONT, BACK };
     Camera();
     void SetCameraProperties(float n, float f, float fovY, float aspectRatio);
     void SetPosition(DirectX::SimpleMath::Vector3 const& position);
     void SetLookAt(DirectX::SimpleMath::Vector3 const& target,
                    DirectX::SimpleMath::Vector3 const& up,
                    DirectX::SimpleMath::Vector3 const& position);
-    void SetXRotation(float angle);
-    void SetYRotation(float angle);
+
+    void  SetXRotation(float radians);
+    void  SetYRotation(float radians);
+    float XRotation();
+    float YRotation();
 
     DirectX::SimpleMath::Vector3 Position();
 
@@ -27,22 +32,11 @@ public:
     DirectX::SimpleMath::Matrix Projection();
     DirectX::SimpleMath::Matrix ViewProjection();
 
-    void OnMouseUp();
-    void OnMouseDown();
-    void OnMouseMove(float x, float y);
-
 private:
     void WorldMatrixChanged();
-    void OffsetPosition(DirectX::SimpleMath::Vector3 const& offset);
 
-    bool mIsMouseDown;
-
-    // mouse position
-    float mX;
-    float mY;
-
-    float mRotX;  // rotation about x
-    float mRotY;  // rotation about y
+    float mRotationX;
+    float mRotationY;
 
     // Camera properties
     float mNear;
