@@ -118,7 +118,6 @@ private:
 
     //! Input
     InputStates mInputStates;
-    // bool mKeyStates[physika::kKeyCodeCount] = {};
 };
 
 }  // namespace sample

@@ -357,7 +357,7 @@ void D3D12Shapes::InitializeSceneCamera()
     float        n           = 1.0f;  // near; the two names are already taken in a windows header
     float        f           = 1000.0f;  // far
     float        aspectRatio = static_cast<float>(mWindowWidth) / static_cast<float>(mWindowHeight);
-    dx::XMFLOAT3 position{ 20.0f, 0.0f, -20.0f };
+    dx::XMFLOAT3 position{ 0.0f, 0.0f, -20.0f };
     dx::XMFLOAT3 target{ 0.0f, 0.0f, 0.0f };
     dx::XMFLOAT3 up{ 0.0f, 1.0f, 0.0f };
 
@@ -471,10 +471,7 @@ void D3D12Shapes::InitializePSOs()
     psoDesc.pRootSignature                     = mRootSignature.Get();
     psoDesc.VS                                 = CD3DX12_SHADER_BYTECODE(vsByteCode.Get());
     psoDesc.PS                                 = CD3DX12_SHADER_BYTECODE(psByteCode.Get());
-    auto rasterState                           = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-    rasterState.FrontCounterClockwise          = true;
-    rasterState.CullMode                       = D3D12_CULL_MODE_FRONT;
-    psoDesc.RasterizerState                    = rasterState;
+    psoDesc.RasterizerState                    = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     psoDesc.BlendState                         = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     psoDesc.DepthStencilState                  = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
     psoDesc.SampleMask                         = UINT_MAX;
@@ -519,7 +516,7 @@ void D3D12Shapes::Update()
     }
 
     //! Update Camera matrix
-    mPerPassCBData.mvp = mCamera.ViewProjection().Transpose();
+    mPerPassCBData.mvp = (mCamera.ViewProjection() * DirectX::SimpleMath::Matrix()).Transpose();
     mCurrentFrameResource->perPassConstantBuffer->CopyData(0, mPerPassCBData);
 
     mTimer.Tick();
