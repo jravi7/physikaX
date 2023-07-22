@@ -516,7 +516,11 @@ void D3D12Shapes::Update()
     }
 
     //! Update Camera matrix
-    mPerPassCBData.mvp = (mCamera.ViewProjection() * DirectX::SimpleMath::Matrix()).Transpose();
+    mPerPassCBData.deltaTime      = mTimer.Delta();
+    mPerPassCBData.totalTime      = mTimer.TotalRunningTime();
+    mPerPassCBData.view           = mCamera.View().Transpose();
+    mPerPassCBData.projection     = mCamera.Projection().Transpose();
+    mPerPassCBData.viewProjection = mCamera.ViewProjection().Transpose();
     mCurrentFrameResource->perPassConstantBuffer->CopyData(0, mPerPassCBData);
 
     mTimer.Tick();

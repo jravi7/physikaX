@@ -43,13 +43,13 @@ MeshData CreateCube(float const side)
                           { XMFLOAT3(-halfSide, -halfSide, halfSide), XMFLOAT4(Colors::Cyan) },
                           { XMFLOAT3(halfSide, -halfSide, halfSide), XMFLOAT4(Colors::Magenta) } };
     /*
-     
+
 
          y+
          ^
          |   z+
          |  /
-         | / 
+         | /
          |/
          +---------> x+
 
