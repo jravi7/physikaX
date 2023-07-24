@@ -92,4 +92,45 @@ MeshData CreateCube(float const side)
     return meshData;
 }
 
+/*
+
+          0------1------2
+         /      /      /
+        3------4------5
+       /      /      /
+      6------7------8
+
+*/
+
+MeshData CreateUniformGrid(int side, int cellSize)
+{
+    MeshData meshData;
+    int halfSide         = side / 2;
+    int cellCountPerRow  = side / cellSize;
+    int pointCountPerRow = cellCountPerRow + 1;
+    for (int z = halfSide; z >= -halfSide; z -= cellSize) {
+        for (int x = -halfSide; x <= halfSide; x += cellSize) {
+            VertexData vertex = { { float(x), 0, float(z) }, XMFLOAT4(Colors::White) };
+            meshData.vertices.push_back(vertex);
+        }
+    }
+    for (int ii = 0; ii < pointCountPerRow - 1; ii++) {
+        for (int jj = 0; jj < pointCountPerRow - 1; jj++) {
+            int v00 = ii * pointCountPerRow + jj;
+            int v01 = ii * pointCountPerRow + (jj + 1);
+            int v10 = (ii + 1) * pointCountPerRow + jj;
+            int v11 = (ii + 1) * pointCountPerRow + (jj + 1);
+            // first triangle
+            meshData.indices.push_back(v00);
+            meshData.indices.push_back(v01);
+            meshData.indices.push_back(v10);
+            // second triangle
+            meshData.indices.push_back(v01);
+            meshData.indices.push_back(v11);
+            meshData.indices.push_back(v10);
+        }
+    }
+    return meshData;
+}
+
 }  // namespace physika::common

@@ -357,7 +357,7 @@ void D3D12Shapes::InitializeSceneCamera()
     float        n           = 1.0f;  // near; the two names are already taken in a windows header
     float        f           = 1000.0f;  // far
     float        aspectRatio = static_cast<float>(mWindowWidth) / static_cast<float>(mWindowHeight);
-    dx::XMFLOAT3 position{ 0.0f, 0.0f, -20.0f };
+    dx::XMFLOAT3 position{ 0.0f, 20.0f, -20.0f };
     dx::XMFLOAT3 target{ 0.0f, 0.0f, 0.0f };
     dx::XMFLOAT3 up{ 0.0f, 1.0f, 0.0f };
 
@@ -371,7 +371,8 @@ void D3D12Shapes::InitializeSceneGeometry()
     auto shapesBuffer  = std::make_shared<d3d12::Mesh>();
     shapesBuffer->name = "Shapes Buffer";
 
-    common::MeshData meshData = common::CreateCube(10);
+    // common::MeshData meshData = common::CreateCube(10);
+    common::MeshData meshData = common::CreateUniformGrid(8, 2);
 
     auto const vertexBufferSize =
         static_cast<uint32_t>(meshData.vertices.size() * meshData.PerVertexDataSize());
@@ -413,6 +414,7 @@ void D3D12Shapes::InitializeRenderItems()
             renderItem->indexBufferStartLocation  = submeshIter.second.indexStartLocation;
             renderItem->vertexBufferStartLocation = submeshIter.second.vertexStartLocation;
             renderItem->indexCount                = submeshIter.second.indexCount;
+            renderItem->primitiveTopology         = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
             mSceneObjects.push_back(renderItem);
         }
     }
@@ -579,7 +581,7 @@ void D3D12Shapes::Draw()
         uint32_t    indexBufferStartLocation  = mSceneObjects[ii]->indexBufferStartLocation;
         mGraphicsCommandList->IASetIndexBuffer(&ibView);
         mGraphicsCommandList->IASetVertexBuffers(0, 1, &vbView);
-        mGraphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        mGraphicsCommandList->IASetPrimitiveTopology(mSceneObjects[ii]->primitiveTopology);
         mGraphicsCommandList->DrawIndexedInstanced(indexCount, 1, indexBufferStartLocation,
                                                    vertexBufferStartLocation, 0);
     }

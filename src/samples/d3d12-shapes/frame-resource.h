@@ -36,6 +36,7 @@ struct RenderItem
     RenderItem()                                          = default;
     uint8_t                     numFramesDirty            = 0;
     int                         cbindex                   = -1;
+    D3D_PRIMITIVE_TOPOLOGY      primitiveTopology         = D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
     uint32_t                    indexCount                = 0;
     uint32_t                    vertexBufferStartLocation = 0;
     uint32_t                    indexBufferStartLocation  = 0;
