@@ -8,7 +8,6 @@ add_subdirectory(lib/common)
 
 # samples
 add_subdirectory(samples/glfw-init)
-add_subdirectory(samples/d3d11-basic)
 add_subdirectory(samples/d3d12-basic)
 add_subdirectory(samples/d3d12-shapes)
 add_subdirectory(samples/d3d12-compute-basic)
