@@ -1,0 +1,1 @@
+![Shapes sample](../../../docs/images/shapes.png)

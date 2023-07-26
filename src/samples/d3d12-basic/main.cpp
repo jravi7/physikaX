@@ -6,7 +6,10 @@
 
 int main()
 {
-    sample::D3D12Basic app(_T("D3D12 Basic"), 1920, 1080);
+    float              aspectRatio43 = 4.0f / 3.0f;
+    int                windowWidth   = 1024;
+    int                windowHeight  = static_cast<int>(windowWidth / aspectRatio43);
+    sample::D3D12Basic app(_T("D3D12 Basic"), windowWidth, windowHeight);
 
     if (!app.Initialize()) {
         printf("Could not initialize app. Exiting");

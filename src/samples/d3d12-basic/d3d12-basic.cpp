@@ -437,9 +437,7 @@ void D3D12Basic::InitializePSOs()
     psoDesc.pRootSignature                     = mRootSignature.Get();
     psoDesc.VS                                 = CD3DX12_SHADER_BYTECODE(vsByteCode.Get());
     psoDesc.PS                                 = CD3DX12_SHADER_BYTECODE(psByteCode.Get());
-    auto rasterState                           = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-    rasterState.FrontCounterClockwise          = true;
-    psoDesc.RasterizerState                    = rasterState;
+    psoDesc.RasterizerState                    = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     psoDesc.BlendState                         = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     psoDesc.DepthStencilState.DepthEnable      = FALSE;
     psoDesc.DepthStencilState.StencilEnable    = FALSE;
