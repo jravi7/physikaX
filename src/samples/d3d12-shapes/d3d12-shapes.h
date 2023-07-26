@@ -111,6 +111,7 @@ private:
     std::shared_ptr<physika::FrameResource>              mCurrentFrameResource;
 
     //! Scene resources
+    uint32_t                                                      mPerPassDescriptorIndexOffset;
     physika::PerPassCBData                                        mPerPassCBData;
     std::unordered_map<std::string, std::shared_ptr<d3d12::Mesh>> mMeshBuffers;
     std::vector<std::shared_ptr<physika::RenderItem>>             mSceneObjects;

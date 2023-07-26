@@ -34,14 +34,14 @@ public:
 
     void CopyData(int const elementIndex, T const& elementData)
     {
-        T* dst = mMappedBuffer + elementIndex * mElementSize;
+        uint8_t* dst = mMappedBuffer + elementIndex * mElementSize;
         memcpy(dst, &elementData, sizeof(T));
     }
 
 private:
     ID3D12ResourcePtr mBuffer;
     uint64_t          mElementSize;
-    T*                mMappedBuffer = nullptr;
+    uint8_t*                mMappedBuffer = nullptr;
 };
 
 }  // namespace physika::d3d12_common

@@ -105,9 +105,9 @@ MeshData CreateCube(float const side)
 MeshData CreateUniformGrid(int side, int cellSize)
 {
     MeshData meshData;
-    int halfSide         = side / 2;
-    int cellCountPerRow  = side / cellSize;
-    int pointCountPerRow = cellCountPerRow + 1;
+    int      halfSide         = side / 2;
+    int      cellCountPerRow  = side / cellSize;
+    int      pointCountPerRow = cellCountPerRow + 1;
     for (int z = halfSide; z >= -halfSide; z -= cellSize) {
         for (int x = -halfSide; x <= halfSide; x += cellSize) {
             VertexData vertex = { { float(x), 0, float(z) }, XMFLOAT4(Colors::White) };

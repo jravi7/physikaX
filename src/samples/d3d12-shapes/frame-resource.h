@@ -28,14 +28,14 @@ struct PerPassCBData
 
 struct PerObjectCBData
 {
-    DirectX::SimpleMath::Matrix worldMatrix;
+    DirectX::SimpleMath::Matrix worldMatrix;  // 64
 };
 
 struct RenderItem
 {
     RenderItem()                                          = default;
-    uint8_t                     numFramesDirty            = 0;
-    int                         cbindex                   = -1;
+    uint32_t                    numFramesDirty            = 0;
+    int                         objectIndex               = -1;
     D3D_PRIMITIVE_TOPOLOGY      primitiveTopology         = D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
     uint32_t                    indexCount                = 0;
     uint32_t                    vertexBufferStartLocation = 0;
@@ -55,5 +55,6 @@ public:
     uint64_t                                fenceIndex            = 0;
     d3d12_common::ID3D12CommandAllocatorPtr pCommandAllocator     = nullptr;
     UploadBufferPtr<PerPassCBData>          perPassConstantBuffer = nullptr;
+    UploadBufferPtr<PerObjectCBData>        perObjectCBData       = nullptr;
 };
 }  // namespace physika

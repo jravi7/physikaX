@@ -284,7 +284,10 @@ void D3D12Shapes::CreateDescriptorHeaps()
     d3d12_common::ThrowIfFailed(hr);
 
     D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc;
-    cbvHeapDesc.NumDescriptors = mSwapChainBufferCount;
+
+    UINT numDescriptors = static_cast<UINT>(mSceneObjects.size() + 1) *
+                          mSwapChainBufferCount;  // Additional 1 descriptor is for per frame cb
+    cbvHeapDesc.NumDescriptors = numDescriptors;
     cbvHeapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     cbvHeapDesc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     cbvHeapDesc.NodeMask       = 0;
@@ -325,17 +328,41 @@ void D3D12Shapes::CreateConstantBufferViews()
 {
     size_t perPassBufferSize = d3d12_common::GetSizeWithAlignment(
         sizeof(physika::PerPassCBData), 256);  // CBs need to be aligned to 256 byte boundary.
+    size_t perObjectBufferSize = d3d12_common::GetSizeWithAlignment(
+        sizeof(physika::PerObjectCBData), 256);  // CBs need to be aligned to 256 byte boundary.
+
     auto cbvDescriptorSize =
         mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-    for (uint32_t ii = 0; ii < mSwapChainBufferCount; ++ii) {
+    mPerPassDescriptorIndexOffset =
+        static_cast<uint32_t>(mSceneObjects.size() * mSwapChainBufferCount);
+
+    for (uint32_t frameIndex = 0; frameIndex < mSwapChainBufferCount; ++frameIndex) {
+        for (uint32_t jj = 0; jj < (uint32_t)mSceneObjects.size(); ++jj) {
+            uint32_t descriptorIndex =
+                static_cast<uint32_t>(frameIndex * mSceneObjects.size() + jj);
+            D3D12_GPU_VIRTUAL_ADDRESS cbGPUVA =
+                mFrameResources[frameIndex]->perObjectCBData->Resource()->GetGPUVirtualAddress();
+            D3D12_CONSTANT_BUFFER_VIEW_DESC desc;
+            desc.BufferLocation   = cbGPUVA + jj * perObjectBufferSize;
+            desc.SizeInBytes      = static_cast<UINT>(perObjectBufferSize);
+            auto descriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(
+                mCBVHeap->GetCPUDescriptorHandleForHeapStart(), descriptorIndex, cbvDescriptorSize);
+            mD3D12Device->CreateConstantBufferView(&desc, descriptorHandle);
+        }
+    }
+
+    int ii = 0;
+    for (size_t perPassIndex = mPerPassDescriptorIndexOffset;
+         perPassIndex < mPerPassDescriptorIndexOffset + mSwapChainBufferCount; ++perPassIndex) {
         D3D12_CONSTANT_BUFFER_VIEW_DESC desc;
         desc.BufferLocation =
             mFrameResources[ii]->perPassConstantBuffer->Resource()->GetGPUVirtualAddress();
         desc.SizeInBytes      = static_cast<UINT>(perPassBufferSize);
         auto descriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(
-            mCBVHeap->GetCPUDescriptorHandleForHeapStart(), ii, cbvDescriptorSize);
+            mCBVHeap->GetCPUDescriptorHandleForHeapStart(), (INT)perPassIndex, cbvDescriptorSize);
         mD3D12Device->CreateConstantBufferView(&desc, descriptorHandle);
+        ii++;
     }
 }
 
@@ -367,36 +394,67 @@ void D3D12Shapes::InitializeSceneCamera()
 
 void D3D12Shapes::InitializeSceneGeometry()
 {
-    //! Initialize Mesh - Vertex and Index Buffers;
-    auto shapesBuffer  = std::make_shared<d3d12::Mesh>();
-    shapesBuffer->name = "Shapes Buffer";
+    common::MeshData cubeMeshData = common::CreateCube(10);
+    common::MeshData gridMeshData = common::CreateUniformGrid(128, 2);
 
-    // common::MeshData meshData = common::CreateCube(10);
-    common::MeshData meshData = common::CreateUniformGrid(8, 2);
+    UINT cubeVertexOffset = 0;
+    UINT cubeIndexOffset  = 0;
+
+    UINT gridVertexOffset = static_cast<UINT>(cubeMeshData.vertices.size());
+    UINT gridIndexOffset  = static_cast<UINT>(cubeMeshData.indices.size());
 
     auto const vertexBufferSize =
-        static_cast<uint32_t>(meshData.vertices.size() * meshData.PerVertexDataSize());
+        static_cast<uint32_t>(cubeMeshData.VertexBufferSize() + gridMeshData.VertexBufferSize());
     auto const indexBufferSize =
-        static_cast<uint32_t>(meshData.indices.size() * meshData.IndexDataSize());
+        static_cast<uint32_t>(cubeMeshData.IndexBufferSize() + gridMeshData.IndexBufferSize());
+
+    //! Initialize Mesh - Vertex and Index Buffers;
+    auto shapesBuffer  = std::make_shared<d3d12::Mesh>();
+    shapesBuffer->name = "primitives";
+
+    D3DCreateBlob(vertexBufferSize, &shapesBuffer->vertexBufferCPU);
+    D3DCreateBlob(indexBufferSize, &shapesBuffer->indexBufferCPU);
+
+    // Copy to system memory D3DBlobs
+    uint8_t* dst = reinterpret_cast<uint8_t*>(shapesBuffer->vertexBufferCPU->GetBufferPointer());
+    memcpy(dst, cubeMeshData.vertices.data(),
+           cubeMeshData.VertexBufferSize());  // cube vertex data
+    memcpy(dst + cubeMeshData.VertexBufferSize(), gridMeshData.vertices.data(),
+           gridMeshData.VertexBufferSize());  // grid vertex data
+
+    dst = reinterpret_cast<uint8_t*>(shapesBuffer->indexBufferCPU->GetBufferPointer());
+    memcpy(dst, cubeMeshData.indices.data(),
+           cubeMeshData.IndexBufferSize());  // cube vertex data
+    memcpy(dst + cubeMeshData.IndexBufferSize(), gridMeshData.indices.data(),
+           gridMeshData.IndexBufferSize());  // grid vertex data
 
     std::tie(shapesBuffer->vertexBufferGPU, shapesBuffer->vertexBufferUploadHeap) =
-        d3d12::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList, meshData.vertices.data(),
+        d3d12::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList,
+                                   shapesBuffer->vertexBufferCPU->GetBufferPointer(),
                                    vertexBufferSize);
 
     std::tie(shapesBuffer->indexBufferGPU, shapesBuffer->indexBufferUploadHeap) =
-        d3d12::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList, meshData.indices.data(),
+        d3d12::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList,
+                                   shapesBuffer->indexBufferCPU->GetBufferPointer(),
                                    indexBufferSize);
 
-    d3d12_common::Submesh triangleSubmesh;
-    triangleSubmesh.indexCount          = (uint32_t)meshData.indices.size();
-    triangleSubmesh.vertexStartLocation = 0;
-    triangleSubmesh.indexStartLocation  = 0;
+    d3d12_common::Submesh cubeSubmesh;
+    cubeSubmesh.indexCount          = (uint32_t)cubeMeshData.indices.size();
+    cubeSubmesh.vertexStartLocation = cubeVertexOffset;
+    cubeSubmesh.indexStartLocation  = cubeIndexOffset;
 
-    shapesBuffer->submeshes["helloTriangle"] = triangleSubmesh;
-    shapesBuffer->vertexBufferByteSize       = vertexBufferSize;
-    shapesBuffer->vertexByteStride           = static_cast<uint32_t>(meshData.PerVertexDataSize());
-    shapesBuffer->indexFormat                = DXGI_FORMAT_R32_UINT;
-    shapesBuffer->indexBufferByteSize        = indexBufferSize;
+    d3d12_common::Submesh gridSubmesh;
+    gridSubmesh.indexCount          = (uint32_t)gridMeshData.indices.size();
+    gridSubmesh.vertexStartLocation = gridVertexOffset;
+    gridSubmesh.indexStartLocation  = gridIndexOffset;
+
+    shapesBuffer->submeshes["cube"] = cubeSubmesh;
+    shapesBuffer->submeshes["grid"] = gridSubmesh;
+
+    shapesBuffer->vertexBufferByteSize = vertexBufferSize;
+    shapesBuffer->indexBufferByteSize  = indexBufferSize;
+    shapesBuffer->vertexByteStride = static_cast<uint32_t>(common::MeshData::PerVertexDataSize());
+    shapesBuffer->indexFormat      = DXGI_FORMAT_R32_UINT;
 
     mMeshBuffers[shapesBuffer->name] = shapesBuffer;
 }
@@ -404,32 +462,51 @@ void D3D12Shapes::InitializeSceneGeometry()
 void D3D12Shapes::InitializeRenderItems()
 {
     // Iterate the mesh buffers and create render items
-    for (auto& meshIter : mMeshBuffers) {
-        d3d12_common::Mesh* geo = meshIter.second.get();
-        for (auto& submeshIter : meshIter.second->submeshes) {
-            auto renderItem = std::make_shared<RenderItem>();
-            // dx::XMFLOAT3 pos = {0.0f, 0.0f, 0.0f};
-            dx::XMStoreFloat4x4(&renderItem->worldMatrix, dx::XMMatrixIdentity());
-            renderItem->geometryBuffer            = geo;
-            renderItem->indexBufferStartLocation  = submeshIter.second.indexStartLocation;
-            renderItem->vertexBufferStartLocation = submeshIter.second.vertexStartLocation;
-            renderItem->indexCount                = submeshIter.second.indexCount;
-            renderItem->primitiveTopology         = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-            mSceneObjects.push_back(renderItem);
-        }
-    }
+
+    std::shared_ptr<d3d12_common::Mesh> geo            = mMeshBuffers["primitives"];
+    auto                                cubeRenderItem = std::make_shared<RenderItem>();
+    cubeRenderItem->geometryBuffer                     = geo.get();
+    cubeRenderItem->indexBufferStartLocation           = geo->submeshes["cube"].indexStartLocation;
+    cubeRenderItem->vertexBufferStartLocation          = geo->submeshes["cube"].vertexStartLocation;
+    cubeRenderItem->indexCount                         = geo->submeshes["cube"].indexCount;
+    cubeRenderItem->primitiveTopology                  = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+    cubeRenderItem->worldMatrix =
+        DirectX::SimpleMath::Matrix::CreateTranslation({ 0.0f, 10.0f, 0.0f });
+    cubeRenderItem->numFramesDirty = mSwapChainBufferCount;
+
+    auto gridRenderItem                       = std::make_shared<RenderItem>();
+    gridRenderItem->geometryBuffer            = geo.get();
+    gridRenderItem->indexBufferStartLocation  = geo->submeshes["grid"].indexStartLocation;
+    gridRenderItem->vertexBufferStartLocation = geo->submeshes["grid"].vertexStartLocation;
+    gridRenderItem->indexCount                = geo->submeshes["grid"].indexCount;
+    gridRenderItem->primitiveTopology         = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+    gridRenderItem->worldMatrix =
+        DirectX::SimpleMath::Matrix::CreateTranslation({ 0.0f, -10.0f, 0.0f });
+    gridRenderItem->numFramesDirty = mSwapChainBufferCount;
+
+    cubeRenderItem->objectIndex = (int)mSceneObjects.size();
+    mSceneObjects.push_back(cubeRenderItem);
+
+    gridRenderItem->objectIndex = (int)mSceneObjects.size();
+    mSceneObjects.push_back(gridRenderItem);
 }
 
 void D3D12Shapes::CreateRootSignatures()
 {
-    CD3DX12_DESCRIPTOR_RANGE1 cbvRange;
-    cbvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1 /*num*/, 0 /*baseRegister*/, 0 /*space*/);
+    CD3DX12_DESCRIPTOR_RANGE1 cbvPerObjectRange;
+    cbvPerObjectRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1 /*num*/, 0 /*baseRegister*/,
+                           0 /*space*/);
 
-    CD3DX12_ROOT_PARAMETER1 rootParameters[1];
-    rootParameters[0].InitAsDescriptorTable(1, &cbvRange, D3D12_SHADER_VISIBILITY_ALL);
+    CD3DX12_DESCRIPTOR_RANGE1 cbvPerFrameRange;
+    cbvPerFrameRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1 /*num*/, 1 /*baseRegister*/,
+                          0 /*space*/);
+
+    CD3DX12_ROOT_PARAMETER1 rootParameters[2]{};
+    rootParameters[0].InitAsDescriptorTable(1, &cbvPerObjectRange, D3D12_SHADER_VISIBILITY_ALL);
+    rootParameters[1].InitAsDescriptorTable(1, &cbvPerFrameRange, D3D12_SHADER_VISIBILITY_ALL);
 
     CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    rootSignatureDesc.Init_1_1(1, rootParameters, 0, nullptr,
+    rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr,
                                D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     d3d12_common::ID3DBlobPtr signature;
@@ -474,6 +551,7 @@ void D3D12Shapes::InitializePSOs()
     psoDesc.VS                                 = CD3DX12_SHADER_BYTECODE(vsByteCode.Get());
     psoDesc.PS                                 = CD3DX12_SHADER_BYTECODE(psByteCode.Get());
     psoDesc.RasterizerState                    = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    psoDesc.RasterizerState.FillMode           = D3D12_FILL_MODE_SOLID;
     psoDesc.BlendState                         = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     psoDesc.DepthStencilState                  = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
     psoDesc.SampleMask                         = UINT_MAX;
@@ -525,6 +603,14 @@ void D3D12Shapes::Update()
     mPerPassCBData.viewProjection = mCamera.ViewProjection().Transpose();
     mCurrentFrameResource->perPassConstantBuffer->CopyData(0, mPerPassCBData);
 
+    for (int ii = 0; ii < (int)mSceneObjects.size(); ++ii) {
+        if (mSceneObjects[ii]->numFramesDirty <= 0) {
+            continue;
+        }
+        PerObjectCBData perObjectCBData = { mSceneObjects[ii]->worldMatrix.Transpose() };
+        mCurrentFrameResource->perObjectCBData->CopyData(ii, perObjectCBData);
+        mSceneObjects[ii]->numFramesDirty--;
+    }
     mTimer.Tick();
 }
 
@@ -558,9 +644,13 @@ void D3D12Shapes::Draw()
     int  resourceIndex = static_cast<int>(mCurrentFrameIndex % mSwapChainBufferCount);
     auto cbvDescriptorSize =
         mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    auto gpuDescriptorHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(
-        mCBVHeap->GetGPUDescriptorHandleForHeapStart(), resourceIndex, cbvDescriptorSize);
-    mGraphicsCommandList->SetGraphicsRootDescriptorTable(0, gpuDescriptorHandle);
+
+    //! Set per frame cb descriptor handle
+    auto gpuPerFrameCBDescriptorHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(
+        mCBVHeap->GetGPUDescriptorHandleForHeapStart(),
+        mPerPassDescriptorIndexOffset + resourceIndex, cbvDescriptorSize);
+
+    mGraphicsCommandList->SetGraphicsRootDescriptorTable(1, gpuPerFrameCBDescriptorHandle);
 
     //! Set Viewport and ScissorRect
     mGraphicsCommandList->RSSetViewports(1, &mViewport);
@@ -574,6 +664,12 @@ void D3D12Shapes::Draw()
 
     // Setup mesh render
     for (int ii = 0; ii < mSceneObjects.size(); ++ii) {
+        int objectIndex =
+            static_cast<int>(resourceIndex * mSceneObjects.size() + mSceneObjects[ii]->objectIndex);
+        auto gpuPerObjectCBDescriptorHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(
+            mCBVHeap->GetGPUDescriptorHandleForHeapStart(), objectIndex, cbvDescriptorSize);
+        mGraphicsCommandList->SetGraphicsRootDescriptorTable(0, gpuPerObjectCBDescriptorHandle);
+
         auto const& ibView     = mSceneObjects[ii]->geometryBuffer->IndexBufferView();
         auto const& vbView     = mSceneObjects[ii]->geometryBuffer->VertexBufferView();
         uint32_t    indexCount = mSceneObjects[ii]->indexCount;

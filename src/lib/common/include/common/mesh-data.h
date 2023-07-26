@@ -22,14 +22,24 @@ struct MeshData
     std::vector<VertexData> vertices;
     std::vector<uint32_t>   indices;
 
-    size_t PerVertexDataSize() const
+    constexpr static size_t PerVertexDataSize()
     {
         return sizeof(VertexData);
     }
 
-    size_t IndexDataSize() const
+    constexpr static size_t IndexDataSize()
     {
         return sizeof(uint32_t);
+    }
+
+    size_t VertexBufferSize() const
+    {
+        return vertices.size() * PerVertexDataSize();
+    }
+
+    size_t IndexBufferSize() const
+    {
+        return indices.size() * IndexDataSize();
     }
 };
 
