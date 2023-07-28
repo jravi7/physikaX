@@ -23,13 +23,23 @@ struct VertexOut
     float4 color : COLOR;
 };
 
-VertexOut VSMain(float3 position : POSITION, float4 color : COLOR)
+struct VertexInput
+{
+    float3 position : POSITION;
+    float3 normal : NORMAL;
+    float3 tangent : TANGENT;
+    float2 texcoord : TEXCOORD;
+    float4 color : COLOR;
+};
+
+
+VertexOut VSMain(VertexInput vin)
 {
     VertexOut result;
 
     float4x4 mvp = mul(modelMatrix, viewProjection); 
-    result.position = mul(float4(position, 1.0f), mvp);
-    result.color    = color;
+    result.position = mul(float4(vin.position, 1.0f), mvp);
+    result.color    = vin.color;
 
     return result;
 }
