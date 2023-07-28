@@ -150,21 +150,18 @@ bool D3D12ComputeBasic::InitializeDeviceObjects()
 
     logger::LOG_INFO("Enumerating Adapters and Initializing Graphics Device");
     bool foundDevice = false;
-    for (UINT ii = 0; mDXGIFactory->EnumAdapters1(ii, &mDXGIAdapter) != DXGI_ERROR_NOT_FOUND;
-         ++ii) {
+    for (UINT ii = 0; mDXGIFactory->EnumAdapters1(ii, &mDXGIAdapter) != DXGI_ERROR_NOT_FOUND; ++ii) {
         DXGI_ADAPTER_DESC1 adapterDesc;
         mDXGIAdapter->GetDesc1(&adapterDesc);
         if (adapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) {
             auto refCount = mDXGIAdapter.Reset();
             if (refCount > 0) {
-                logger::LOG_WARN("Dangling DXGI Adapter at index %d with refcount %llu", ii,
-                                 refCount);
+                logger::LOG_WARN("Dangling DXGI Adapter at index %d with refcount %llu", ii, refCount);
             }
             continue;
         }
 
-        auto result = D3D12CreateDevice(mDXGIAdapter.Get(), D3D_FEATURE_LEVEL_12_0,
-                                        IID_PPV_ARGS(&mD3D12Device));
+        auto result = D3D12CreateDevice(mDXGIAdapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&mD3D12Device));
         if (SUCCEEDED(result)) {
             foundDevice = true;
             // D3D12 capable device available.
@@ -191,15 +188,13 @@ bool D3D12ComputeBasic::InitializeCommandObjects()
     }
 
     //! Initialize Command Allocator
-    if (FAILED(mD3D12Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                                    IID_PPV_ARGS(&mCommandAllocator)))) {
+    if (FAILED(mD3D12Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mCommandAllocator)))) {
         logger::LOG_FATAL("Failed to create command queue.");
         return false;
     }
 
-    if (FAILED(mD3D12Device->CreateCommandList(
-            0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandAllocator.Get(), nullptr,
-            IID_PPV_ARGS(mGraphicsCommandList.GetAddressOf())))) {
+    if (FAILED(mD3D12Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandAllocator.Get(), nullptr,
+                                               IID_PPV_ARGS(mGraphicsCommandList.GetAddressOf())))) {
         return false;
     }
 
@@ -289,12 +284,10 @@ bool D3D12ComputeBasic::CreateRenderTargetView()
             logger::LOG_FATAL("Failed to get swapchain back buffer.");
             return false;
         }
-        auto rtvDescriptorSize =
-            mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-        auto descriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(
-            mRtvHeap->GetCPUDescriptorHandleForHeapStart(), ii, rtvDescriptorSize);
-        mD3D12Device->CreateRenderTargetView(mSwapChainBackBuffers[ii].Get(), nullptr,
-                                             descriptorHandle);
+        auto rtvDescriptorSize = mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+        auto descriptorHandle =
+            CD3DX12_CPU_DESCRIPTOR_HANDLE(mRtvHeap->GetCPUDescriptorHandleForHeapStart(), ii, rtvDescriptorSize);
+        mD3D12Device->CreateRenderTargetView(mSwapChainBackBuffers[ii].Get(), nullptr, descriptorHandle);
     }
     logger::LOG_DEBUG("Render Target Views successfully created");
     return true;
@@ -324,16 +317,15 @@ bool D3D12ComputeBasic::CreateDepthStencilBufferAndView()
     optClearValue.Format       = desc.Format;
 
     //! Create Depth Stencil buffer
-    if (FAILED(mD3D12Device->CreateCommittedResource(
-            &heapProperties, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_DEPTH_WRITE,
-            &optClearValue, IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())))) {
+    if (FAILED(mD3D12Device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &desc,
+                                                     D3D12_RESOURCE_STATE_DEPTH_WRITE, &optClearValue,
+                                                     IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())))) {
         logger::LOG_FATAL("Failed to create depth/stencil buffer");
         return false;
     }
 
     //! Create a view for the buffer
-    mD3D12Device->CreateDepthStencilView(mDepthStencilBuffer.Get(), nullptr,
-                                         mDsvHeap->GetCPUDescriptorHandleForHeapStart());
+    mD3D12Device->CreateDepthStencilView(mDepthStencilBuffer.Get(), nullptr, mDsvHeap->GetCPUDescriptorHandleForHeapStart());
 
     logger::LOG_DEBUG("Successfully created depth/stencil buffer and view");
 
@@ -378,11 +370,9 @@ void D3D12ComputeBasic::InitializeResources()
 
     uint64_t byteSize = numbersToAdd1.size() * sizeof(float);
 
-    mVectorOfNumbers1 = d3d12::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList,
-                                                   numbersToAdd1.data(), byteSize);
+    mVectorOfNumbers1 = d3d12::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList, numbersToAdd1.data(), byteSize);
 
-    mVectorOfNumbers2 = d3d12::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList,
-                                                   numbersToAdd2.data(), byteSize);
+    mVectorOfNumbers2 = d3d12::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList, numbersToAdd2.data(), byteSize);
 
     mVectorAddResult = d3d12::CreateOutputBuffer(mD3D12Device, byteSize);
 }
@@ -399,10 +389,8 @@ void D3D12ComputeBasic::InitializePSOs()
 
     d3d12::ID3DBlobPtr signature;
     d3d12::ID3DBlobPtr error;
-    d3d12::ThrowIfFailed(D3D12SerializeRootSignature(
-        &rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
-    d3d12::ThrowIfFailed(mD3D12Device->CreateRootSignature(0, signature->GetBufferPointer(),
-                                                           signature->GetBufferSize(),
+    d3d12::ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+    d3d12::ThrowIfFailed(mD3D12Device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(),
                                                            IID_PPV_ARGS(&mRootSignature)));
 
     d3d12::ID3DBlobPtr csByteCode = nullptr;
@@ -410,8 +398,8 @@ void D3D12ComputeBasic::InitializePSOs()
     d3d12::ID3DBlobPtr errors;
     auto const         shaderPath = GetCurrentExeFullPath() / "compute-shader.hlsl";
 
-    HRESULT hr = D3DCompileFromFile(shaderPath.wstring().c_str(), nullptr, nullptr, "CSMain",
-                                    "cs_5_0", 0, 0, &csByteCode, &errors);
+    HRESULT hr =
+        D3DCompileFromFile(shaderPath.wstring().c_str(), nullptr, nullptr, "CSMain", "cs_5_0", 0, 0, &csByteCode, &errors);
 
     if (errors != nullptr)
         OutputDebugStringA((char*)errors->GetBufferPointer());
@@ -422,8 +410,7 @@ void D3D12ComputeBasic::InitializePSOs()
     psoDesc.pRootSignature                    = mRootSignature.Get();
     psoDesc.CS                                = CD3DX12_SHADER_BYTECODE(csByteCode.Get());
     psoDesc.Flags                             = D3D12_PIPELINE_STATE_FLAG_NONE;
-    d3d12::ThrowIfFailed(
-        mD3D12Device->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&mPipelineState)));
+    d3d12::ThrowIfFailed(mD3D12Device->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&mPipelineState)));
 }
 
 bool D3D12ComputeBasic::Shutdown()
@@ -452,19 +439,17 @@ void D3D12ComputeBasic::Draw()
 {
     d3d12::ThrowIfFailed(mCommandAllocator->Reset());
 
-    d3d12::ThrowIfFailed(
-        mGraphicsCommandList->Reset(mCommandAllocator.Get(), mPipelineState.Get()));
+    d3d12::ThrowIfFailed(mGraphicsCommandList->Reset(mCommandAllocator.Get(), mPipelineState.Get()));
 
     auto currentBackBuffer = mSwapChainBackBuffers[mCurrentBackBuffer].Get();
 
     CD3DX12_RESOURCE_BARRIER transitionToRenderTargetState = CD3DX12_RESOURCE_BARRIER::Transition(
         currentBackBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     mGraphicsCommandList->ResourceBarrier(1, &transitionToRenderTargetState);
-    auto rtvDescriptorSize =
-        mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-    auto currentRTV = CD3DX12_CPU_DESCRIPTOR_HANDLE(mRtvHeap->GetCPUDescriptorHandleForHeapStart(),
-                                                    mCurrentBackBuffer, rtvDescriptorSize);
-    auto dsv        = mDsvHeap->GetCPUDescriptorHandleForHeapStart();
+    auto rtvDescriptorSize = mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    auto currentRTV =
+        CD3DX12_CPU_DESCRIPTOR_HANDLE(mRtvHeap->GetCPUDescriptorHandleForHeapStart(), mCurrentBackBuffer, rtvDescriptorSize);
+    auto dsv = mDsvHeap->GetCPUDescriptorHandleForHeapStart();
     mGraphicsCommandList->OMSetRenderTargets(1, &currentRTV, true, &dsv);
     //! Set Viewport and ScissorRect
     mGraphicsCommandList->RSSetViewports(1, &mViewport);
@@ -473,8 +458,7 @@ void D3D12ComputeBasic::Draw()
     //! Clear back buffer and depth/stencil buffer
     auto const& clearColor = DirectX::XMVECTORF32({ 0.2f, 0.2f, 0.2f, 1.0f });
     mGraphicsCommandList->ClearRenderTargetView(currentRTV, clearColor, 0, nullptr);
-    mGraphicsCommandList->ClearDepthStencilView(
-        dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+    mGraphicsCommandList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
     CD3DX12_RESOURCE_BARRIER transitionToPresentState = CD3DX12_RESOURCE_BARRIER::Transition(
         currentBackBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -534,13 +518,11 @@ void D3D12ComputeBasic::OnResize(int width, int height)
     mCurrentBackBuffer = 0;
 
     //! Recreate RenderTargetViews
-    auto rtvDescriptorSize =
-        mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    auto rtvDescriptorSize = mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
     for (uint32_t ii = 0; ii < mSwapChainBufferCount; ++ii) {
         d3d12::ThrowIfFailed(mSwapChain->GetBuffer(ii, IID_PPV_ARGS(&mSwapChainBackBuffers[ii])));
-        mD3D12Device->CreateRenderTargetView(mSwapChainBackBuffers[ii].Get(), nullptr,
-                                             rtvHeapHandle);
+        mD3D12Device->CreateRenderTargetView(mSwapChainBackBuffers[ii].Get(), nullptr, rtvHeapHandle);
         rtvHeapHandle.Offset(ii, rtvDescriptorSize);
     }
 
@@ -561,8 +543,7 @@ void D3D12ComputeBasic::OnResize(int width, int height)
 void D3D12ComputeBasic::ComputeVectorAdd()
 {
     d3d12::ThrowIfFailed(mCommandAllocator->Reset());
-    d3d12::ThrowIfFailed(
-        mGraphicsCommandList->Reset(mCommandAllocator.Get(), mPipelineState.Get()));
+    d3d12::ThrowIfFailed(mGraphicsCommandList->Reset(mCommandAllocator.Get(), mPipelineState.Get()));
 
     auto input1                 = std::get<0>(mVectorOfNumbers1).Get()->GetGPUVirtualAddress();
     auto input2                 = std::get<0>(mVectorOfNumbers2).Get()->GetGPUVirtualAddress();
@@ -577,15 +558,15 @@ void D3D12ComputeBasic::ComputeVectorAdd()
     mGraphicsCommandList->Dispatch(1, 1, 1);
 
     // Transition OutputBuffer to CopySource
-    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-        outputResource.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(outputResource.Get(), D3D12_RESOURCE_STATE_COMMON,
+                                                        D3D12_RESOURCE_STATE_COPY_SOURCE);
     mGraphicsCommandList->ResourceBarrier(1, &barrier);
 
     // Copy to readback buffer
     mGraphicsCommandList->CopyResource(outputResourceReadback.Get(), outputResource.Get());
 
-    barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-        outputResource.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COMMON);
+    barrier = CD3DX12_RESOURCE_BARRIER::Transition(outputResource.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE,
+                                                   D3D12_RESOURCE_STATE_COMMON);
     mGraphicsCommandList->ResourceBarrier(1, &barrier);
 
     d3d12::ThrowIfFailed(mGraphicsCommandList->Close());

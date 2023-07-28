@@ -40,8 +40,7 @@ namespace sample {
 namespace dx = DirectX;
 using namespace physika;
 
-D3D12Shapes::D3D12Shapes(TCHAR const* const title, int width, int height)
-    : physika::Application(title, width, height)
+D3D12Shapes::D3D12Shapes(TCHAR const* const title, int width, int height) : physika::Application(title, width, height)
 {
     mSwapChainBufferCount = 2;
     mCurrentFrameIndex    = 0;
@@ -89,8 +88,7 @@ bool D3D12Shapes::Initialize()
     InitializeSwapChain();  // Swapchain depends on commandqueue.
     CreateDepthStencilBuffer();
 
-    d3d12_common::ThrowIfFailed(
-        mD3D12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(mFence.GetAddressOf())));
+    d3d12_common::ThrowIfFailed(mD3D12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(mFence.GetAddressOf())));
 
     mCommandAllocator->Reset();
     mGraphicsCommandList->Reset(mCommandAllocator.Get(), nullptr);
@@ -134,21 +132,18 @@ void D3D12Shapes::InitializeDeviceObjects()
 
     logger::LOG_INFO("Enumerating Adapters and Initializing Graphics Device");
     bool foundDevice = false;
-    for (UINT ii = 0; mDXGIFactory->EnumAdapters1(ii, &mDXGIAdapter) != DXGI_ERROR_NOT_FOUND;
-         ++ii) {
+    for (UINT ii = 0; mDXGIFactory->EnumAdapters1(ii, &mDXGIAdapter) != DXGI_ERROR_NOT_FOUND; ++ii) {
         DXGI_ADAPTER_DESC1 adapterDesc;
         mDXGIAdapter->GetDesc1(&adapterDesc);
         if (adapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) {
             auto refCount = mDXGIAdapter.Reset();
             if (refCount > 0) {
-                logger::LOG_WARN("Dangling DXGI Adapter at index %d with refcount %llu", ii,
-                                 refCount);
+                logger::LOG_WARN("Dangling DXGI Adapter at index %d with refcount %llu", ii, refCount);
             }
             continue;
         }
 
-        hr = D3D12CreateDevice(mDXGIAdapter.Get(), D3D_FEATURE_LEVEL_12_0,
-                               IID_PPV_ARGS(&mD3D12Device));
+        hr = D3D12CreateDevice(mDXGIAdapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&mD3D12Device));
         if (SUCCEEDED(hr)) {
             foundDevice = true;
             // D3D12 capable device available.
@@ -168,18 +163,16 @@ void D3D12Shapes::InitializeCommandObjects()
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Flags                    = D3D12_COMMAND_QUEUE_FLAG_NONE;
     queueDesc.Type                     = D3D12_COMMAND_LIST_TYPE_DIRECT;
-    HRESULT hr = mD3D12Device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&mCommandQueue));
+    HRESULT hr                         = mD3D12Device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&mCommandQueue));
     d3d12_common::ThrowIfFailed(hr);
 
     //! Create CommandAllocator
-    hr = mD3D12Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                              IID_PPV_ARGS(&mCommandAllocator));
+    hr = mD3D12Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mCommandAllocator));
     d3d12_common::ThrowIfFailed(hr);
 
     //! Create CommandList
-    hr =
-        mD3D12Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandAllocator.Get(),
-                                        nullptr, IID_PPV_ARGS(mGraphicsCommandList.GetAddressOf()));
+    hr = mD3D12Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandAllocator.Get(), nullptr,
+                                         IID_PPV_ARGS(mGraphicsCommandList.GetAddressOf()));
     d3d12_common::ThrowIfFailed(hr);
     mGraphicsCommandList->Close();
 
@@ -220,8 +213,8 @@ void D3D12Shapes::InitializeSwapChain()
     swapChainDesc.BufferUsage  = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     swapChainDesc.Flags        = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
-    HRESULT hr = mDXGIFactory->CreateSwapChain(
-        mCommandQueue.Get(), &swapChainDesc, &mSwapChain);  // TODO: Consider CreateSwapChainForHwnd
+    HRESULT hr = mDXGIFactory->CreateSwapChain(mCommandQueue.Get(), &swapChainDesc,
+                                               &mSwapChain);  // TODO: Consider CreateSwapChainForHwnd
     d3d12_common::ThrowIfFailed(hr);
 
     logger::LOG_DEBUG("Swap chain successfully created.");
@@ -255,9 +248,9 @@ void D3D12Shapes::CreateDepthStencilBuffer()
     optClearValue.Format       = desc.Format;
 
     //! Create Depth Stencil buffer
-    HRESULT hr = mD3D12Device->CreateCommittedResource(
-        &heapProperties, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_DEPTH_WRITE,
-        &optClearValue, IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf()));
+    HRESULT hr =
+        mD3D12Device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_DEPTH_WRITE,
+                                              &optClearValue, IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf()));
     d3d12_common::ThrowIfFailed(hr);
 }
 
@@ -285,13 +278,13 @@ void D3D12Shapes::CreateDescriptorHeaps()
 
     D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc;
 
-    UINT numDescriptors = static_cast<UINT>(mSceneObjects.size() + 1) *
-                          mSwapChainBufferCount;  // Additional 1 descriptor is for per frame cb
+    UINT numDescriptors =
+        static_cast<UINT>(mSceneObjects.size() + 1) * mSwapChainBufferCount;  // Additional 1 descriptor is for per frame cb
     cbvHeapDesc.NumDescriptors = numDescriptors;
     cbvHeapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     cbvHeapDesc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     cbvHeapDesc.NodeMask       = 0;
-    hr = mD3D12Device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&mCBVHeap));
+    hr                         = mD3D12Device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&mCBVHeap));
     d3d12_common::ThrowIfFailed(hr);
 }
 
@@ -308,46 +301,40 @@ void D3D12Shapes::CreateRenderTargetViews()
     for (uint32_t ii = 0; ii < mSwapChainBufferCount; ++ii) {
         HRESULT hr = mSwapChain->GetBuffer(ii, IID_PPV_ARGS(&mSwapChainBackBuffers[ii]));
         d3d12_common::ThrowIfFailed(hr);
-        auto rtvDescriptorSize =
-            mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-        auto descriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(
-            mRtvHeap->GetCPUDescriptorHandleForHeapStart(), ii, rtvDescriptorSize);
-        mD3D12Device->CreateRenderTargetView(mSwapChainBackBuffers[ii].Get(), nullptr,
-                                             descriptorHandle);
+        auto rtvDescriptorSize = mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+        auto descriptorHandle =
+            CD3DX12_CPU_DESCRIPTOR_HANDLE(mRtvHeap->GetCPUDescriptorHandleForHeapStart(), ii, rtvDescriptorSize);
+        mD3D12Device->CreateRenderTargetView(mSwapChainBackBuffers[ii].Get(), nullptr, descriptorHandle);
     }
     logger::LOG_DEBUG("Render Target Views successfully created");
 
     //! Create a view for the depth/stencil buffer
-    mD3D12Device->CreateDepthStencilView(mDepthStencilBuffer.Get(), nullptr,
-                                         mDsvHeap->GetCPUDescriptorHandleForHeapStart());
+    mD3D12Device->CreateDepthStencilView(mDepthStencilBuffer.Get(), nullptr, mDsvHeap->GetCPUDescriptorHandleForHeapStart());
 
     logger::LOG_DEBUG("Successfully created depth/stencil buffer and view");
 }
 
 void D3D12Shapes::CreateConstantBufferViews()
 {
-    size_t perPassBufferSize = d3d12_common::GetSizeWithAlignment(
-        sizeof(physika::PerPassCBData), 256);  // CBs need to be aligned to 256 byte boundary.
-    size_t perObjectBufferSize = d3d12_common::GetSizeWithAlignment(
-        sizeof(physika::PerObjectCBData), 256);  // CBs need to be aligned to 256 byte boundary.
+    size_t perPassBufferSize   = d3d12_common::GetSizeWithAlignment(sizeof(physika::PerPassCBData),
+                                                                    256);  // CBs need to be aligned to 256 byte boundary.
+    size_t perObjectBufferSize = d3d12_common::GetSizeWithAlignment(sizeof(physika::PerObjectCBData),
+                                                                    256);  // CBs need to be aligned to 256 byte boundary.
 
-    auto cbvDescriptorSize =
-        mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    auto cbvDescriptorSize = mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-    mPerPassDescriptorIndexOffset =
-        static_cast<uint32_t>(mSceneObjects.size() * mSwapChainBufferCount);
+    mPerPassDescriptorIndexOffset = static_cast<uint32_t>(mSceneObjects.size() * mSwapChainBufferCount);
 
     for (uint32_t frameIndex = 0; frameIndex < mSwapChainBufferCount; ++frameIndex) {
         for (uint32_t jj = 0; jj < (uint32_t)mSceneObjects.size(); ++jj) {
-            uint32_t descriptorIndex =
-                static_cast<uint32_t>(frameIndex * mSceneObjects.size() + jj);
+            uint32_t                  descriptorIndex = static_cast<uint32_t>(frameIndex * mSceneObjects.size() + jj);
             D3D12_GPU_VIRTUAL_ADDRESS cbGPUVA =
                 mFrameResources[frameIndex]->perObjectCBData->Resource()->GetGPUVirtualAddress();
             D3D12_CONSTANT_BUFFER_VIEW_DESC desc;
             desc.BufferLocation   = cbGPUVA + jj * perObjectBufferSize;
             desc.SizeInBytes      = static_cast<UINT>(perObjectBufferSize);
-            auto descriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(
-                mCBVHeap->GetCPUDescriptorHandleForHeapStart(), descriptorIndex, cbvDescriptorSize);
+            auto descriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mCBVHeap->GetCPUDescriptorHandleForHeapStart(),
+                                                                  descriptorIndex, cbvDescriptorSize);
             mD3D12Device->CreateConstantBufferView(&desc, descriptorHandle);
         }
     }
@@ -356,11 +343,10 @@ void D3D12Shapes::CreateConstantBufferViews()
     for (size_t perPassIndex = mPerPassDescriptorIndexOffset;
          perPassIndex < mPerPassDescriptorIndexOffset + mSwapChainBufferCount; ++perPassIndex) {
         D3D12_CONSTANT_BUFFER_VIEW_DESC desc;
-        desc.BufferLocation =
-            mFrameResources[ii]->perPassConstantBuffer->Resource()->GetGPUVirtualAddress();
-        desc.SizeInBytes      = static_cast<UINT>(perPassBufferSize);
-        auto descriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(
-            mCBVHeap->GetCPUDescriptorHandleForHeapStart(), (INT)perPassIndex, cbvDescriptorSize);
+        desc.BufferLocation = mFrameResources[ii]->perPassConstantBuffer->Resource()->GetGPUVirtualAddress();
+        desc.SizeInBytes    = static_cast<UINT>(perPassBufferSize);
+        auto descriptorHandle =
+            CD3DX12_CPU_DESCRIPTOR_HANDLE(mCBVHeap->GetCPUDescriptorHandleForHeapStart(), (INT)perPassIndex, cbvDescriptorSize);
         mD3D12Device->CreateConstantBufferView(&desc, descriptorHandle);
         ii++;
     }
@@ -381,7 +367,7 @@ void D3D12Shapes::ResizeViewportAndScissorRect()
 void D3D12Shapes::InitializeSceneCamera()
 {
     float        fov         = 60.0f;
-    float        n           = 1.0f;  // near; the two names are already taken in a windows header
+    float        n           = 1.0f;     // near; the two names are already taken in a windows header
     float        f           = 1000.0f;  // far
     float        aspectRatio = static_cast<float>(mWindowWidth) / static_cast<float>(mWindowHeight);
     dx::XMFLOAT3 position{ 0.0f, 20.0f, -20.0f };
@@ -403,10 +389,8 @@ void D3D12Shapes::InitializeSceneGeometry()
     UINT gridVertexOffset = static_cast<UINT>(cubeMeshData.vertices.size());
     UINT gridIndexOffset  = static_cast<UINT>(cubeMeshData.indices.size());
 
-    auto const vertexBufferSize =
-        static_cast<uint32_t>(cubeMeshData.VertexBufferSize() + gridMeshData.VertexBufferSize());
-    auto const indexBufferSize =
-        static_cast<uint32_t>(cubeMeshData.IndexBufferSize() + gridMeshData.IndexBufferSize());
+    auto const vertexBufferSize = static_cast<uint32_t>(cubeMeshData.VertexBufferSize() + gridMeshData.VertexBufferSize());
+    auto const indexBufferSize  = static_cast<uint32_t>(cubeMeshData.IndexBufferSize() + gridMeshData.IndexBufferSize());
 
     //! Initialize Mesh - Vertex and Index Buffers;
     auto shapesBuffer  = std::make_shared<d3d12::Mesh>();
@@ -428,15 +412,11 @@ void D3D12Shapes::InitializeSceneGeometry()
     memcpy(dst + cubeMeshData.IndexBufferSize(), gridMeshData.indices.data(),
            gridMeshData.IndexBufferSize());  // grid vertex data
 
-    std::tie(shapesBuffer->vertexBufferGPU, shapesBuffer->vertexBufferUploadHeap) =
-        d3d12::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList,
-                                   shapesBuffer->vertexBufferCPU->GetBufferPointer(),
-                                   vertexBufferSize);
+    std::tie(shapesBuffer->vertexBufferGPU, shapesBuffer->vertexBufferUploadHeap) = d3d12::CreateDefaultBuffer(
+        mD3D12Device, mGraphicsCommandList, shapesBuffer->vertexBufferCPU->GetBufferPointer(), vertexBufferSize);
 
-    std::tie(shapesBuffer->indexBufferGPU, shapesBuffer->indexBufferUploadHeap) =
-        d3d12::CreateDefaultBuffer(mD3D12Device, mGraphicsCommandList,
-                                   shapesBuffer->indexBufferCPU->GetBufferPointer(),
-                                   indexBufferSize);
+    std::tie(shapesBuffer->indexBufferGPU, shapesBuffer->indexBufferUploadHeap) = d3d12::CreateDefaultBuffer(
+        mD3D12Device, mGraphicsCommandList, shapesBuffer->indexBufferCPU->GetBufferPointer(), indexBufferSize);
 
     d3d12_common::Submesh cubeSubmesh;
     cubeSubmesh.indexCount          = (uint32_t)cubeMeshData.indices.size();
@@ -453,8 +433,8 @@ void D3D12Shapes::InitializeSceneGeometry()
 
     shapesBuffer->vertexBufferByteSize = vertexBufferSize;
     shapesBuffer->indexBufferByteSize  = indexBufferSize;
-    shapesBuffer->vertexByteStride = static_cast<uint32_t>(common::MeshData::PerVertexDataSize());
-    shapesBuffer->indexFormat      = DXGI_FORMAT_R32_UINT;
+    shapesBuffer->vertexByteStride     = static_cast<uint32_t>(common::MeshData::PerVertexDataSize());
+    shapesBuffer->indexFormat          = DXGI_FORMAT_R32_UINT;
 
     mMeshBuffers[shapesBuffer->name] = shapesBuffer;
 }
@@ -470,9 +450,8 @@ void D3D12Shapes::InitializeRenderItems()
     cubeRenderItem->vertexBufferStartLocation          = geo->submeshes["cube"].vertexStartLocation;
     cubeRenderItem->indexCount                         = geo->submeshes["cube"].indexCount;
     cubeRenderItem->primitiveTopology                  = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-    cubeRenderItem->worldMatrix =
-        DirectX::SimpleMath::Matrix::CreateTranslation({ 0.0f, 10.0f, 0.0f });
-    cubeRenderItem->numFramesDirty = mSwapChainBufferCount;
+    cubeRenderItem->worldMatrix                        = DirectX::SimpleMath::Matrix::CreateTranslation({ 0.0f, 10.0f, 0.0f });
+    cubeRenderItem->numFramesDirty                     = mSwapChainBufferCount;
 
     auto gridRenderItem                       = std::make_shared<RenderItem>();
     gridRenderItem->geometryBuffer            = geo.get();
@@ -480,9 +459,8 @@ void D3D12Shapes::InitializeRenderItems()
     gridRenderItem->vertexBufferStartLocation = geo->submeshes["grid"].vertexStartLocation;
     gridRenderItem->indexCount                = geo->submeshes["grid"].indexCount;
     gridRenderItem->primitiveTopology         = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-    gridRenderItem->worldMatrix =
-        DirectX::SimpleMath::Matrix::CreateTranslation({ 0.0f, -10.0f, 0.0f });
-    gridRenderItem->numFramesDirty = mSwapChainBufferCount;
+    gridRenderItem->worldMatrix               = DirectX::SimpleMath::Matrix::CreateTranslation({ 0.0f, -10.0f, 0.0f });
+    gridRenderItem->numFramesDirty            = mSwapChainBufferCount;
 
     cubeRenderItem->objectIndex = (int)mSceneObjects.size();
     mSceneObjects.push_back(cubeRenderItem);
@@ -494,12 +472,10 @@ void D3D12Shapes::InitializeRenderItems()
 void D3D12Shapes::CreateRootSignatures()
 {
     CD3DX12_DESCRIPTOR_RANGE1 cbvPerObjectRange;
-    cbvPerObjectRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1 /*num*/, 0 /*baseRegister*/,
-                           0 /*space*/);
+    cbvPerObjectRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1 /*num*/, 0 /*baseRegister*/, 0 /*space*/);
 
     CD3DX12_DESCRIPTOR_RANGE1 cbvPerFrameRange;
-    cbvPerFrameRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1 /*num*/, 1 /*baseRegister*/,
-                          0 /*space*/);
+    cbvPerFrameRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1 /*num*/, 1 /*baseRegister*/, 0 /*space*/);
 
     CD3DX12_ROOT_PARAMETER1 rootParameters[2]{};
     rootParameters[0].InitAsDescriptorTable(1, &cbvPerObjectRange, D3D12_SHADER_VISIBILITY_ALL);
@@ -511,10 +487,8 @@ void D3D12Shapes::CreateRootSignatures()
 
     d3d12_common::ID3DBlobPtr signature;
     d3d12_common::ID3DBlobPtr error;
-    d3d12::ThrowIfFailed(
-        D3D12SerializeVersionedRootSignature(&rootSignatureDesc, &signature, &error));
-    d3d12::ThrowIfFailed(mD3D12Device->CreateRootSignature(0, signature->GetBufferPointer(),
-                                                           signature->GetBufferSize(),
+    d3d12::ThrowIfFailed(D3D12SerializeVersionedRootSignature(&rootSignatureDesc, &signature, &error));
+    d3d12::ThrowIfFailed(mD3D12Device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(),
                                                            IID_PPV_ARGS(&mRootSignature)));
 }
 void D3D12Shapes::InitializePSOs()
@@ -524,24 +498,21 @@ void D3D12Shapes::InitializePSOs()
     d3d12_common::ID3DBlobPtr errors;
     auto const                shaderPath = GetCurrentExeFullPath() / shaderHlsl;
 
-    HRESULT hr = D3DCompileFromFile(shaderPath.wstring().c_str(), nullptr, nullptr, "VSMain",
-                                    "vs_5_0", 0, 0, &vsByteCode, &errors);
+    HRESULT hr =
+        D3DCompileFromFile(shaderPath.wstring().c_str(), nullptr, nullptr, "VSMain", "vs_5_0", 0, 0, &vsByteCode, &errors);
 
     if (errors != nullptr)
         OutputDebugStringA((char*)errors->GetBufferPointer());
     d3d12::ThrowIfFailed(hr);
 
-    hr = D3DCompileFromFile(shaderPath.wstring().c_str(), nullptr, nullptr, "PSMain", "ps_5_0", 0,
-                            0, &psByteCode, &errors);
+    hr = D3DCompileFromFile(shaderPath.wstring().c_str(), nullptr, nullptr, "PSMain", "ps_5_0", 0, 0, &psByteCode, &errors);
     if (errors != nullptr)
         OutputDebugStringA((char*)errors->GetBufferPointer());
     d3d12::ThrowIfFailed(hr);
 
     D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
-          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12,
-          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
     };
 
     // Describe and create the graphics pipeline state object (PSO).
@@ -560,8 +531,7 @@ void D3D12Shapes::InitializePSOs()
     psoDesc.RTVFormats[0]                      = DXGI_FORMAT_R8G8B8A8_UNORM;
     psoDesc.DSVFormat                          = DXGI_FORMAT_D24_UNORM_S8_UINT;
     psoDesc.SampleDesc.Count                   = 1;
-    d3d12::ThrowIfFailed(
-        mD3D12Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&mPipelineState)));
+    d3d12::ThrowIfFailed(mD3D12Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&mPipelineState)));
 }
 
 bool D3D12Shapes::Shutdown()
@@ -586,8 +556,7 @@ void D3D12Shapes::Update()
     //! Wait for frame resources to be freed up
     auto resourceIndex    = mCurrentFrameIndex % mSwapChainBufferCount;
     mCurrentFrameResource = mFrameResources[resourceIndex];
-    if (mCurrentFrameResource->fenceIndex != 0 &&
-        mFence->GetCompletedValue() < mCurrentFrameResource->fenceIndex) {
+    if (mCurrentFrameResource->fenceIndex != 0 && mFence->GetCompletedValue() < mCurrentFrameResource->fenceIndex) {
         HANDLE eventHandle = CreateEvent(nullptr, false, false, nullptr);
         assert(eventHandle && "Failed to create handle");
         d3d12::ThrowIfFailed(mFence->SetEventOnCompletion(mFenceValue, eventHandle));
@@ -626,11 +595,10 @@ void D3D12Shapes::Draw()
     CD3DX12_RESOURCE_BARRIER transitionToRenderTargetState = CD3DX12_RESOURCE_BARRIER::Transition(
         currentBackBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     mGraphicsCommandList->ResourceBarrier(1, &transitionToRenderTargetState);
-    auto rtvDescriptorSize =
-        mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-    auto currentRTV = CD3DX12_CPU_DESCRIPTOR_HANDLE(mRtvHeap->GetCPUDescriptorHandleForHeapStart(),
-                                                    mCurrentBackBuffer, rtvDescriptorSize);
-    auto dsv        = mDsvHeap->GetCPUDescriptorHandleForHeapStart();
+    auto rtvDescriptorSize = mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    auto currentRTV =
+        CD3DX12_CPU_DESCRIPTOR_HANDLE(mRtvHeap->GetCPUDescriptorHandleForHeapStart(), mCurrentBackBuffer, rtvDescriptorSize);
+    auto dsv = mDsvHeap->GetCPUDescriptorHandleForHeapStart();
     mGraphicsCommandList->OMSetRenderTargets(1, &currentRTV, true, &dsv);
     //! Set root signature and pipeline state
     mGraphicsCommandList->SetGraphicsRootSignature(mRootSignature.Get());
@@ -641,14 +609,12 @@ void D3D12Shapes::Draw()
     mGraphicsCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
     //! Set Root Descriptor
-    int  resourceIndex = static_cast<int>(mCurrentFrameIndex % mSwapChainBufferCount);
-    auto cbvDescriptorSize =
-        mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    int  resourceIndex     = static_cast<int>(mCurrentFrameIndex % mSwapChainBufferCount);
+    auto cbvDescriptorSize = mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
     //! Set per frame cb descriptor handle
     auto gpuPerFrameCBDescriptorHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(
-        mCBVHeap->GetGPUDescriptorHandleForHeapStart(),
-        mPerPassDescriptorIndexOffset + resourceIndex, cbvDescriptorSize);
+        mCBVHeap->GetGPUDescriptorHandleForHeapStart(), mPerPassDescriptorIndexOffset + resourceIndex, cbvDescriptorSize);
 
     mGraphicsCommandList->SetGraphicsRootDescriptorTable(1, gpuPerFrameCBDescriptorHandle);
 
@@ -659,27 +625,24 @@ void D3D12Shapes::Draw()
     //! Clear back buffer and depth/stencil buffer
     auto const& clearColor = DirectX::XMVECTORF32({ 0.2f, 0.2f, 0.2f, 1.0f });
     mGraphicsCommandList->ClearRenderTargetView(currentRTV, clearColor, 0, nullptr);
-    mGraphicsCommandList->ClearDepthStencilView(
-        dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+    mGraphicsCommandList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
     // Setup mesh render
     for (int ii = 0; ii < mSceneObjects.size(); ++ii) {
-        int objectIndex =
-            static_cast<int>(resourceIndex * mSceneObjects.size() + mSceneObjects[ii]->objectIndex);
-        auto gpuPerObjectCBDescriptorHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(
-            mCBVHeap->GetGPUDescriptorHandleForHeapStart(), objectIndex, cbvDescriptorSize);
+        int  objectIndex = static_cast<int>(resourceIndex * mSceneObjects.size() + mSceneObjects[ii]->objectIndex);
+        auto gpuPerObjectCBDescriptorHandle =
+            CD3DX12_GPU_DESCRIPTOR_HANDLE(mCBVHeap->GetGPUDescriptorHandleForHeapStart(), objectIndex, cbvDescriptorSize);
         mGraphicsCommandList->SetGraphicsRootDescriptorTable(0, gpuPerObjectCBDescriptorHandle);
 
-        auto const& ibView     = mSceneObjects[ii]->geometryBuffer->IndexBufferView();
-        auto const& vbView     = mSceneObjects[ii]->geometryBuffer->VertexBufferView();
-        uint32_t    indexCount = mSceneObjects[ii]->indexCount;
+        auto const& ibView                    = mSceneObjects[ii]->geometryBuffer->IndexBufferView();
+        auto const& vbView                    = mSceneObjects[ii]->geometryBuffer->VertexBufferView();
+        uint32_t    indexCount                = mSceneObjects[ii]->indexCount;
         uint32_t    vertexBufferStartLocation = mSceneObjects[ii]->vertexBufferStartLocation;
         uint32_t    indexBufferStartLocation  = mSceneObjects[ii]->indexBufferStartLocation;
         mGraphicsCommandList->IASetIndexBuffer(&ibView);
         mGraphicsCommandList->IASetVertexBuffers(0, 1, &vbView);
         mGraphicsCommandList->IASetPrimitiveTopology(mSceneObjects[ii]->primitiveTopology);
-        mGraphicsCommandList->DrawIndexedInstanced(indexCount, 1, indexBufferStartLocation,
-                                                   vertexBufferStartLocation, 0);
+        mGraphicsCommandList->DrawIndexedInstanced(indexCount, 1, indexBufferStartLocation, vertexBufferStartLocation, 0);
     }
 
     CD3DX12_RESOURCE_BARRIER transitionToPresentState = CD3DX12_RESOURCE_BARRIER::Transition(

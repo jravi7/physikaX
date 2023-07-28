@@ -41,7 +41,7 @@ public:
 private:
     ID3D12ResourcePtr mBuffer;
     uint64_t          mElementSize;
-    uint8_t*                mMappedBuffer = nullptr;
+    uint8_t*          mMappedBuffer = nullptr;
 };
 
 }  // namespace physika::d3d12_common
