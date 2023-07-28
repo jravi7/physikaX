@@ -9,11 +9,16 @@ namespace physika::common {
 struct VertexData
 {
     VertexData() = default;
-    VertexData(DirectX::XMFLOAT3 const& p, DirectX::XMFLOAT4 const& c) : position(p), color(c)
+    VertexData(DirectX::XMFLOAT3 const& p, DirectX::XMFLOAT3 const& n, DirectX::XMFLOAT3 const& t, DirectX::XMFLOAT2 const& uv,
+               DirectX::XMFLOAT4 c)
+        : position(p), normal(n), tangent(t), texcoord(uv), color(c)
     {
     }
 
     DirectX::XMFLOAT3 position;
+    DirectX::XMFLOAT3 normal;
+    DirectX::XMFLOAT3 tangent;
+    DirectX::XMFLOAT2 texcoord;
     DirectX::XMFLOAT4 color;
 };
 

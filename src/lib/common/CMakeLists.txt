@@ -9,4 +9,6 @@ phi_add_library(${TARGET} STATIC
                     SOURCES
                     ${SOURCES})
 
+target_link_libraries(${TARGET} PRIVATE DirectXTK12)
+
 target_include_directories(${TARGET} PUBLIC include)
