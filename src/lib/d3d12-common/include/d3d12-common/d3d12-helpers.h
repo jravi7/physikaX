@@ -1,4 +1,5 @@
 #pragma once
+#include <DirectXMath.h>
 #include <d3d12.h>
 #include <inttypes.h>    // uint64_t
 #include <wrl/client.h>  // ComPtr
@@ -25,12 +26,11 @@ void ThrowIfFailed(HRESULT hr);
 
 //! @brief Create a committed buffer
 //! @out
-ID3D12ResourcePtr CreateBuffer(ID3D12DevicePtr pDevice, D3D12_HEAP_PROPERTIES const& heapProperties,
-                               uint64_t const size);
+ID3D12ResourcePtr CreateBuffer(ID3D12DevicePtr pDevice, D3D12_HEAP_PROPERTIES const& heapProperties, uint64_t const size);
 
 //! @brief Creates a default GPU Buffer and Upload Heap buffer with initial data.
-DefaultGPUBuffer CreateDefaultBuffer(ID3D12DevicePtr pDevice, ID3D12GraphicsCommandListPtr pCmdlist,
-                                     void const* initialData, uint64_t const byteSize);
+DefaultGPUBuffer CreateDefaultBuffer(ID3D12DevicePtr pDevice, ID3D12GraphicsCommandListPtr pCmdlist, void const* initialData,
+                                     uint64_t const byteSize);
 
 //! @brief create a default GPU buffer and a readback buffer
 OutputBuffer CreateOutputBuffer(ID3D12DevicePtr device, uint64_t const byteSize);
@@ -88,6 +88,25 @@ struct Mesh
         vertexBufferUploadHeap = nullptr;
         indexBufferUploadHeap  = nullptr;
     }
+};
+
+struct MaterialCBData
+{
+    DirectX::XMFLOAT4 diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
+    DirectX::XMFLOAT3 fresnel       = { 0.01f, 0.01f, 0.01f };
+    float             roughness     = 0.25f;  // 0 being shiny and 1.0 for maximum roughness
+};
+
+struct Material
+{
+    std::string       name;
+    int               cbHeapIndex         = -1;
+    int               diffuseSrvHeapIndex = -1;
+    int               normalHeapIndex     = -1;
+    DirectX::XMFLOAT4 diffuseAlbedo       = { 1.0f, 1.0f, 1.0f, 1.0f };
+    DirectX::XMFLOAT3 fresnel             = { 0.01f, 0.01f, 0.01f };
+    float             roughness           = 0.25f;  // 0 being shiny and 1.0 for maximum roughness
+    int               numFramesDirty      = -1;     // Not initialized
 };
 
 }  // namespace d3d12_common

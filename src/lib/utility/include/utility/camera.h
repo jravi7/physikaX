@@ -13,8 +13,7 @@ public:
     Camera();
     void SetCameraProperties(float n, float f, float fovY, float aspectRatio);
     void SetPosition(DirectX::SimpleMath::Vector3 const& position);
-    void SetLookAt(DirectX::SimpleMath::Vector3 const& target,
-                   DirectX::SimpleMath::Vector3 const& up,
+    void SetLookAt(DirectX::SimpleMath::Vector3 const& target, DirectX::SimpleMath::Vector3 const& up,
                    DirectX::SimpleMath::Vector3 const& position);
 
     void  SetXRotation(float radians);

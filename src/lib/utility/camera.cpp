@@ -31,18 +31,16 @@ void Camera::SetPosition(DirectX::SimpleMath::Vector3 const& position)
 }
 void Camera::SetXRotation(float radians)
 {
-    mRotationX = std::clamp(radians, -XM_PIDIV2, XM_PIDIV2);
-    Quaternion orientation =
-        Quaternion(DirectX::XMQuaternionRotationRollPitchYaw(mRotationX, mRotationY, 0));
-    mWorldMatrix = Matrix::CreateFromQuaternion(orientation);
+    mRotationX             = std::clamp(radians, -XM_PIDIV2, XM_PIDIV2);
+    Quaternion orientation = Quaternion(DirectX::XMQuaternionRotationRollPitchYaw(mRotationX, mRotationY, 0));
+    mWorldMatrix           = Matrix::CreateFromQuaternion(orientation);
     mWorldMatrix.Translation(mPosition);
     WorldMatrixChanged();
 }
 void Camera::SetYRotation(float radians)
 {
-    mRotationY = DirectX::XMScalarModAngle(radians);
-    Quaternion orientation =
-        Quaternion(DirectX::XMQuaternionRotationRollPitchYaw(mRotationX, mRotationY, 0));
+    mRotationY             = DirectX::XMScalarModAngle(radians);
+    Quaternion orientation = Quaternion(DirectX::XMQuaternionRotationRollPitchYaw(mRotationX, mRotationY, 0));
 
     mWorldMatrix = Matrix::CreateFromQuaternion(orientation);
     mWorldMatrix.Translation(mPosition);
@@ -63,8 +61,7 @@ void Camera::WorldMatrixChanged()
     mView = mWorldMatrix.Invert();
 }
 
-void Camera::SetLookAt(DirectX::SimpleMath::Vector3 const& target,
-                       DirectX::SimpleMath::Vector3 const& up,
+void Camera::SetLookAt(DirectX::SimpleMath::Vector3 const& target, DirectX::SimpleMath::Vector3 const& up,
                        DirectX::SimpleMath::Vector3 const& position)
 {
     mPosition = position;
@@ -87,8 +84,7 @@ void Camera::SetLookAt(DirectX::SimpleMath::Vector3 const& target,
     Vector3    scale;
     Quaternion orientation;
     Vector3    translation;
-    assert(mWorldMatrix.Decompose(scale, orientation, translation) &&
-           "Malformed Camera WorldMatrix");
+    assert(mWorldMatrix.Decompose(scale, orientation, translation) && "Malformed Camera WorldMatrix");
 
     Vector3 euler = orientation.ToEuler();
     mRotationX    = euler.x;

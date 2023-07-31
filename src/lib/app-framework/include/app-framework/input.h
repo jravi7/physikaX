@@ -105,15 +105,13 @@ enum Keycode {
 //! https://stackoverflow.com/questions/15889414/how-to-overload-operator-on-scoped-enum
 inline MouseButton operator|(MouseButton const& leftSide, MouseButton const& rightSide)
 {
-    MouseButton result =
-        static_cast<MouseButton>(static_cast<int>(leftSide) | static_cast<int>(rightSide));
+    MouseButton result = static_cast<MouseButton>(static_cast<int>(leftSide) | static_cast<int>(rightSide));
     return result;
 }
 
 inline MouseButton operator&(MouseButton const& leftSide, MouseButton const& rightSide)
 {
-    MouseButton result =
-        static_cast<MouseButton>(static_cast<int>(leftSide) & static_cast<int>(rightSide));
+    MouseButton result = static_cast<MouseButton>(static_cast<int>(leftSide) & static_cast<int>(rightSide));
     return result;
 }
 
