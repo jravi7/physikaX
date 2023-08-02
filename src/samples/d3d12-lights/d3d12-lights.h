@@ -58,6 +58,7 @@ private:
     // Resources
     void InitializeSceneCamera();
     void InitializeSceneGeometry();
+    void InitializeSceneMaterials();
     void InitializeFrameResources();
     void InitializeRenderItems();
     void CreateDescriptorHeaps();
@@ -111,11 +112,14 @@ private:
     std::shared_ptr<physika::FrameResource>              mCurrentFrameResource;
 
     //! Scene resources
-    uint32_t                                                      mPerPassDescriptorIndexOffset;
-    physika::PerPassCBData                                        mPerPassCBData;
-    std::unordered_map<std::string, std::shared_ptr<d3d12::Mesh>> mMeshBuffers;
-    std::vector<std::shared_ptr<physika::RenderItem>>             mSceneObjects;
-    physika::utility::Camera                                      mCamera;
+    uint32_t                                                                          mNumDescriptorsPerFrame;
+    uint32_t                                                                          mPerPassDescriptorOffset;
+    uint32_t                                                                          mMaterialDescriptorOffset;
+    std::unordered_map<std::string, std::shared_ptr<d3d12::Mesh>>                     mMeshBuffers;
+    std::unordered_map<std::string, std::shared_ptr<physika::d3d12_common::Material>> mMaterials;
+    std::vector<std::shared_ptr<physika::RenderItem>>                                 mSceneObjects;
+
+    physika::utility::Camera mCamera;
 
     //! Input
     InputStates mInputStates;

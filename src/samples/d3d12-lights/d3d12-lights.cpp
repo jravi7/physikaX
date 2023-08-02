@@ -93,8 +93,9 @@ bool D3D12Lights::Initialize()
     mCommandAllocator->Reset();
     mGraphicsCommandList->Reset(mCommandAllocator.Get(), nullptr);
 
-    InitializeSceneGeometry();
     InitializeSceneCamera();
+    InitializeSceneGeometry();
+    InitializeSceneMaterials();
     InitializeRenderItems();
     InitializeFrameResources();
     CreateDescriptorHeaps();
@@ -181,9 +182,10 @@ void D3D12Lights::InitializeCommandObjects()
 
 void D3D12Lights::InitializeFrameResources()
 {
-    uint32_t objectCount = static_cast<uint32_t>(mSceneObjects.size());
+    uint32_t objectCount   = static_cast<uint32_t>(mSceneObjects.size());
+    uint32_t materialCount = static_cast<uint32_t>(mMaterials.size());
     for (uint32_t ii = 0; ii < mSwapChainBufferCount; ++ii) {
-        mFrameResources.emplace_back(std::make_shared<FrameResource>(mD3D12Device, objectCount));
+        mFrameResources.emplace_back(std::make_shared<FrameResource>(mD3D12Device, objectCount, materialCount));
         mFrameResources[ii]->pCommandAllocator->Reset();
     }
 }
@@ -276,10 +278,16 @@ void D3D12Lights::CreateDescriptorHeaps()
     hr = mD3D12Device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&mDsvHeap));
     d3d12_common::ThrowIfFailed(hr);
 
+    /*  <----------------Frame 0-------------------><----------------Frame 1------------------->
+     * -----------------------------------------------------------------------------------------
+     * | PerObjectCB | Material Data | perPassData | PerObjectCB | Material Data | perPassData |
+     * -----------------------------------------------------------------------------------------
+     */
+    UINT numDescriptors = static_cast<UINT>(mSceneObjects.size() + mMaterials.size() + 1) *
+                          mSwapChainBufferCount;  // Additional 1 descriptor is for per frame cb
+
     D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc;
 
-    UINT numDescriptors =
-        static_cast<UINT>(mSceneObjects.size() + 1) * mSwapChainBufferCount;  // Additional 1 descriptor is for per frame cb
     cbvHeapDesc.NumDescriptors = numDescriptors;
     cbvHeapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     cbvHeapDesc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
@@ -316,18 +324,21 @@ void D3D12Lights::CreateRenderTargetViews()
 
 void D3D12Lights::CreateConstantBufferViews()
 {
-    size_t perPassBufferSize   = d3d12_common::GetSizeWithAlignment(sizeof(physika::PerPassCBData),
-                                                                    256);  // CBs need to be aligned to 256 byte boundary.
-    size_t perObjectBufferSize = d3d12_common::GetSizeWithAlignment(sizeof(physika::PerObjectCBData),
-                                                                    256);  // CBs need to be aligned to 256 byte boundary.
+    // CBs need to be aligned to 256 byte boundary.
+    size_t const perPassBufferSize     = d3d12_common::GetSizeWithAlignment(sizeof(physika::PerPassCBData), 256);
+    size_t const perObjectBufferSize   = d3d12_common::GetSizeWithAlignment(sizeof(physika::PerObjectCBData), 256);
+    size_t const perMaterialBufferSize = d3d12_common::GetSizeWithAlignment(sizeof(d3d12_common::MaterialCBData), 256);
 
     auto cbvDescriptorSize = mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-    mPerPassDescriptorIndexOffset = static_cast<uint32_t>(mSceneObjects.size() * mSwapChainBufferCount);
+    mMaterialDescriptorOffset = (uint32_t)(mSceneObjects.size());
+    mPerPassDescriptorOffset  = (uint32_t)(mSceneObjects.size() + mMaterials.size());
+    mNumDescriptorsPerFrame   = (uint32_t)(mSceneObjects.size() + mMaterials.size() + 1);
 
+    // descriptors for object transforms
     for (uint32_t frameIndex = 0; frameIndex < mSwapChainBufferCount; ++frameIndex) {
         for (uint32_t jj = 0; jj < (uint32_t)mSceneObjects.size(); ++jj) {
-            uint32_t                  descriptorIndex = static_cast<uint32_t>(frameIndex * mSceneObjects.size() + jj);
+            uint32_t                  descriptorIndex = static_cast<uint32_t>(frameIndex * mNumDescriptorsPerFrame + jj);
             D3D12_GPU_VIRTUAL_ADDRESS cbGPUVA =
                 mFrameResources[frameIndex]->perObjectCBData->Resource()->GetGPUVirtualAddress();
             D3D12_CONSTANT_BUFFER_VIEW_DESC desc;
@@ -337,18 +348,29 @@ void D3D12Lights::CreateConstantBufferViews()
                                                                   descriptorIndex, cbvDescriptorSize);
             mD3D12Device->CreateConstantBufferView(&desc, descriptorHandle);
         }
-    }
+        // descriptors for material data
+        for (auto const& material : mMaterials) {
+            uint32_t descriptorIndex = static_cast<uint32_t>(frameIndex * mNumDescriptorsPerFrame + mMaterialDescriptorOffset +
+                                                             material.second->cbHeapIndex);
+            D3D12_GPU_VIRTUAL_ADDRESS cbGPUVA =
+                mFrameResources[frameIndex]->perMaterialData->Resource()->GetGPUVirtualAddress();
+            D3D12_CONSTANT_BUFFER_VIEW_DESC desc;
+            desc.BufferLocation   = cbGPUVA + material.second->cbHeapIndex * perMaterialBufferSize;
+            desc.SizeInBytes      = static_cast<UINT>(perMaterialBufferSize);
+            auto descriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mCBVHeap->GetCPUDescriptorHandleForHeapStart(),
+                                                                  descriptorIndex, cbvDescriptorSize);
+            mD3D12Device->CreateConstantBufferView(&desc, descriptorHandle);
+        }
 
-    int ii = 0;
-    for (size_t perPassIndex = mPerPassDescriptorIndexOffset;
-         perPassIndex < mPerPassDescriptorIndexOffset + mSwapChainBufferCount; ++perPassIndex) {
+        // descriptors for frame constant data
+        int perPassIndex = frameIndex * mNumDescriptorsPerFrame + mPerPassDescriptorOffset;
+
         D3D12_CONSTANT_BUFFER_VIEW_DESC desc;
-        desc.BufferLocation = mFrameResources[ii]->perPassConstantBuffer->Resource()->GetGPUVirtualAddress();
+        desc.BufferLocation = mFrameResources[frameIndex]->perPassConstantBuffer->Resource()->GetGPUVirtualAddress();
         desc.SizeInBytes    = static_cast<UINT>(perPassBufferSize);
         auto descriptorHandle =
             CD3DX12_CPU_DESCRIPTOR_HANDLE(mCBVHeap->GetCPUDescriptorHandleForHeapStart(), (INT)perPassIndex, cbvDescriptorSize);
         mD3D12Device->CreateConstantBufferView(&desc, descriptorHandle);
-        ii++;
     }
 }
 
@@ -439,10 +461,31 @@ void D3D12Lights::InitializeSceneGeometry()
     mMeshBuffers[shapesBuffer->name] = shapesBuffer;
 }
 
+void D3D12Lights::InitializeSceneMaterials()
+{
+    auto tileMaterial            = std::make_shared<d3d12_common::Material>();
+    tileMaterial->name           = "tile";
+    tileMaterial->cbHeapIndex    = 0;
+    tileMaterial->diffuseAlbedo  = DirectX::XMFLOAT4(DirectX::Colors::LightGray);
+    tileMaterial->fresnel        = DirectX::XMFLOAT3(0.02f, 0.02f, 0.02f);
+    tileMaterial->roughness      = 0.7f;
+    tileMaterial->numFramesDirty = mSwapChainBufferCount;
+
+    auto steelMaterial            = std::make_shared<d3d12_common::Material>();
+    steelMaterial->name           = "steel";
+    steelMaterial->cbHeapIndex    = 1;
+    steelMaterial->diffuseAlbedo  = DirectX::XMFLOAT4(DirectX::Colors::LightSteelBlue);
+    steelMaterial->fresnel        = DirectX::XMFLOAT3(0.05f, 0.05f, 0.05f);
+    steelMaterial->roughness      = 0.1f;
+    steelMaterial->numFramesDirty = mSwapChainBufferCount;
+
+    mMaterials["tile"]  = tileMaterial;
+    mMaterials["steel"] = steelMaterial;
+}
+
 void D3D12Lights::InitializeRenderItems()
 {
     // Iterate the mesh buffers and create render items
-
     std::shared_ptr<d3d12_common::Mesh> geo            = mMeshBuffers["primitives"];
     auto                                cubeRenderItem = std::make_shared<RenderItem>();
     cubeRenderItem->geometryBuffer                     = geo.get();
@@ -452,6 +495,7 @@ void D3D12Lights::InitializeRenderItems()
     cubeRenderItem->primitiveTopology                  = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
     cubeRenderItem->worldMatrix                        = DirectX::SimpleMath::Matrix::CreateTranslation({ 0.0f, 10.0f, 0.0f });
     cubeRenderItem->numFramesDirty                     = mSwapChainBufferCount;
+    cubeRenderItem->material                           = mMaterials["steel"].get();
 
     auto gridRenderItem                       = std::make_shared<RenderItem>();
     gridRenderItem->geometryBuffer            = geo.get();
@@ -461,6 +505,7 @@ void D3D12Lights::InitializeRenderItems()
     gridRenderItem->primitiveTopology         = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
     gridRenderItem->worldMatrix               = DirectX::SimpleMath::Matrix::CreateTranslation({ 0.0f, -10.0f, 0.0f });
     gridRenderItem->numFramesDirty            = mSwapChainBufferCount;
+    gridRenderItem->material                  = mMaterials["tile"].get();
 
     cubeRenderItem->objectIndex = (int)mSceneObjects.size();
     mSceneObjects.push_back(cubeRenderItem);
@@ -477,9 +522,13 @@ void D3D12Lights::CreateRootSignatures()
     CD3DX12_DESCRIPTOR_RANGE1 cbvPerFrameRange;
     cbvPerFrameRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1 /*num*/, 1 /*baseRegister*/, 0 /*space*/);
 
-    CD3DX12_ROOT_PARAMETER1 rootParameters[2]{};
+    CD3DX12_DESCRIPTOR_RANGE1 cbvPerMaterialRange;
+    cbvPerMaterialRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1 /*num*/, 2 /*baseRegister*/, 0 /*space*/);
+
+    CD3DX12_ROOT_PARAMETER1 rootParameters[3]{};
     rootParameters[0].InitAsDescriptorTable(1, &cbvPerObjectRange, D3D12_SHADER_VISIBILITY_ALL);
     rootParameters[1].InitAsDescriptorTable(1, &cbvPerFrameRange, D3D12_SHADER_VISIBILITY_ALL);
+    rootParameters[2].InitAsDescriptorTable(1, &cbvPerMaterialRange, D3D12_SHADER_VISIBILITY_ALL);
 
     CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
     rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr,
@@ -568,13 +617,15 @@ void D3D12Lights::Update()
     }
 
     //! Update Camera matrix
-    mPerPassCBData.deltaTime      = mTimer.Delta();
-    mPerPassCBData.totalTime      = mTimer.TotalRunningTime();
-    mPerPassCBData.view           = mCamera.View().Transpose();
-    mPerPassCBData.projection     = mCamera.Projection().Transpose();
-    mPerPassCBData.viewProjection = mCamera.ViewProjection().Transpose();
-    mCurrentFrameResource->perPassConstantBuffer->CopyData(0, mPerPassCBData);
+    physika::PerPassCBData perPassCBData;
+    perPassCBData.deltaTime      = mTimer.Delta();
+    perPassCBData.totalTime      = mTimer.TotalRunningTime();
+    perPassCBData.view           = mCamera.View().Transpose();
+    perPassCBData.projection     = mCamera.Projection().Transpose();
+    perPassCBData.viewProjection = mCamera.ViewProjection().Transpose();
+    mCurrentFrameResource->perPassConstantBuffer->CopyData(0, perPassCBData);
 
+    //! Update Object Data
     for (int ii = 0; ii < (int)mSceneObjects.size(); ++ii) {
         if (mSceneObjects[ii]->numFramesDirty <= 0) {
             continue;
@@ -583,6 +634,20 @@ void D3D12Lights::Update()
         mCurrentFrameResource->perObjectCBData->CopyData(ii, perObjectCBData);
         mSceneObjects[ii]->numFramesDirty--;
     }
+
+    //! Update Material Data
+    for (auto& material : mMaterials) {
+        if (material.second->numFramesDirty <= 0) {
+            continue;
+        }
+        d3d12_common::MaterialCBData perMaterialData = {};
+        perMaterialData.diffuseAlbedo                = material.second->diffuseAlbedo;
+        perMaterialData.fresnel                      = material.second->fresnel;
+        perMaterialData.roughness                    = material.second->roughness;
+        mCurrentFrameResource->perMaterialData->CopyData(material.second->cbHeapIndex, perMaterialData);
+        material.second->numFramesDirty--;
+    }
+
     mTimer.Tick();
 }
 
@@ -612,12 +677,13 @@ void D3D12Lights::Draw()
     mGraphicsCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
     //! Set Root Descriptor
-    int  resourceIndex     = static_cast<int>(mCurrentFrameIndex % mSwapChainBufferCount);
-    auto cbvDescriptorSize = mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    int  frameResourceIndex = static_cast<int>(mCurrentFrameIndex % mSwapChainBufferCount);
+    auto cbvDescriptorSize  = mD3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
     //! Set per frame cb descriptor handle
-    auto gpuPerFrameCBDescriptorHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(
-        mCBVHeap->GetGPUDescriptorHandleForHeapStart(), mPerPassDescriptorIndexOffset + resourceIndex, cbvDescriptorSize);
+    int  perPassIndex = frameResourceIndex * mNumDescriptorsPerFrame + mPerPassDescriptorOffset;
+    auto gpuPerFrameCBDescriptorHandle =
+        CD3DX12_GPU_DESCRIPTOR_HANDLE(mCBVHeap->GetGPUDescriptorHandleForHeapStart(), perPassIndex, cbvDescriptorSize);
 
     mGraphicsCommandList->SetGraphicsRootDescriptorTable(1, gpuPerFrameCBDescriptorHandle);
 
@@ -632,10 +698,17 @@ void D3D12Lights::Draw()
 
     // Setup mesh render
     for (int ii = 0; ii < mSceneObjects.size(); ++ii) {
-        int  objectIndex = static_cast<int>(resourceIndex * mSceneObjects.size() + mSceneObjects[ii]->objectIndex);
+        int objectIndex   = static_cast<int>(frameResourceIndex * mNumDescriptorsPerFrame + mSceneObjects[ii]->objectIndex);
+        int materialIndex = static_cast<int>(frameResourceIndex * mNumDescriptorsPerFrame + mMaterialDescriptorOffset +
+                                             mSceneObjects[ii]->material->cbHeapIndex);
+
         auto gpuPerObjectCBDescriptorHandle =
             CD3DX12_GPU_DESCRIPTOR_HANDLE(mCBVHeap->GetGPUDescriptorHandleForHeapStart(), objectIndex, cbvDescriptorSize);
         mGraphicsCommandList->SetGraphicsRootDescriptorTable(0, gpuPerObjectCBDescriptorHandle);
+
+        auto materialCBDescriptorHandle =
+            CD3DX12_GPU_DESCRIPTOR_HANDLE(mCBVHeap->GetGPUDescriptorHandleForHeapStart(), materialIndex, cbvDescriptorSize);
+        mGraphicsCommandList->SetGraphicsRootDescriptorTable(2, materialCBDescriptorHandle);
 
         auto const& ibView                    = mSceneObjects[ii]->geometryBuffer->IndexBufferView();
         auto const& vbView                    = mSceneObjects[ii]->geometryBuffer->VertexBufferView();

@@ -41,20 +41,22 @@ struct RenderItem
     uint32_t                    vertexBufferStartLocation = 0;
     uint32_t                    indexBufferStartLocation  = 0;
     d3d12_common::Mesh*         geometryBuffer            = nullptr;
+    d3d12_common::Material*     material                  = nullptr;
     DirectX::SimpleMath::Matrix worldMatrix;
 };
 
 struct FrameResource
 {
 public:
-    FrameResource(d3d12_common::ID3D12DevicePtr pDevice, uint32_t const objectCount);
+    FrameResource(d3d12_common::ID3D12DevicePtr pDevice, uint32_t const objectCount, uint32_t const materialCount);
     FrameResource()                           = delete;
     FrameResource(FrameResource const& other) = delete;
     FrameResource& operator=(FrameResource const& other) = delete;
 
-    uint64_t                                fenceIndex            = 0;
-    d3d12_common::ID3D12CommandAllocatorPtr pCommandAllocator     = nullptr;
-    UploadBufferPtr<PerPassCBData>          perPassConstantBuffer = nullptr;
-    UploadBufferPtr<PerObjectCBData>        perObjectCBData       = nullptr;
+    uint64_t                                      fenceIndex            = 0;
+    d3d12_common::ID3D12CommandAllocatorPtr       pCommandAllocator     = nullptr;
+    UploadBufferPtr<PerPassCBData>                perPassConstantBuffer = nullptr;
+    UploadBufferPtr<PerObjectCBData>              perObjectCBData       = nullptr;
+    UploadBufferPtr<d3d12_common::MaterialCBData> perMaterialData       = nullptr;
 };
 }  // namespace physika

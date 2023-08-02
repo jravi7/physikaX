@@ -1,4 +1,9 @@
 
+cbuffer cbPerObject : register(b0)
+{
+    float4x4 modelMatrix;       //64
+};
+
 cbuffer cbPerPass : register(b1)
 {
     float4x4 view;              // 64
@@ -11,10 +16,11 @@ cbuffer cbPerPass : register(b1)
     float3x3 pad3;              // 36
 };
 
-
-cbuffer cbPerObject : register(b0)
+cbuffer materialData : register(b2)
 {
-    float4x4 modelMatrix;       //64
+    float4 diffuseAlbedo;
+    float3 fresnel;
+    float  roughness;
 };
 
 struct VertexOut
@@ -46,5 +52,5 @@ VertexOut VSMain(VertexInput vin)
 
 float4 PSMain(VertexOut input) : SV_TARGET
 {
-    return input.color;
+    return diffuseAlbedo;
 }
