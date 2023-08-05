@@ -109,5 +109,17 @@ struct Material
     int               numFramesDirty      = -1;     // Not initialized
 };
 
+struct Light
+{
+    DirectX::XMFLOAT3 position;
+    float             fallOffStart;  // 16
+    DirectX::XMFLOAT3 direction;
+    float             fallOffend;  // 32
+    DirectX::XMFLOAT3 strength;
+    float             innerCutOffAngle;  // 48 cosine of angle in degrees
+    DirectX::XMFLOAT3 ambientStrength;
+    float             outerCutOffAngle;  // 64
+};
+
 }  // namespace d3d12_common
 }  // namespace physika

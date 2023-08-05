@@ -118,6 +118,9 @@ private:
     std::unordered_map<std::string, std::shared_ptr<d3d12::Mesh>>                     mMeshBuffers;
     std::unordered_map<std::string, std::shared_ptr<physika::d3d12_common::Material>> mMaterials;
     std::vector<std::shared_ptr<physika::RenderItem>>                                 mSceneObjects;
+    std::vector<physika::d3d12_common::Light>                                         mDirectionalLights;
+    std::vector<physika::d3d12_common::Light>                                         mPointLights;
+    std::vector<physika::d3d12_common::Light>                                         mSpotLights;
 
     physika::utility::Camera mCamera;
 

@@ -459,6 +459,33 @@ void D3D12Lights::InitializeSceneGeometry()
     shapesBuffer->indexFormat          = DXGI_FORMAT_R32_UINT;
 
     mMeshBuffers[shapesBuffer->name] = shapesBuffer;
+
+    //! Scene Lights
+    d3d12_common::Light sunLight;
+    sunLight.position        = DirectX::XMFLOAT3(10, 20, -10);
+    sunLight.direction       = DirectX::XMFLOAT3(1.0f, -1.0f, -1.0f);
+    sunLight.ambientStrength = DirectX::XMFLOAT3(0.2f, 0.2f, 0.2f);
+    sunLight.strength        = DirectX::XMFLOAT3(0.5f, 0.5f, 0.5f);
+    mDirectionalLights.push_back(sunLight);
+
+    d3d12_common::Light pointLight;
+    pointLight.position        = DirectX::XMFLOAT3(10, 20, -10);
+    pointLight.ambientStrength = DirectX::XMFLOAT3(0.2f, 0.2f, 0.2f);
+    pointLight.strength        = DirectX::XMFLOAT3(0.8f, 0.8f, 0.8f);
+    pointLight.fallOffStart    = 10.0f;
+    pointLight.fallOffend      = 70.0f;
+    mPointLights.push_back(pointLight);
+
+    d3d12_common::Light spotLight;
+    spotLight.position         = DirectX::XMFLOAT3(0, 50, 0);
+    spotLight.direction        = DirectX::XMFLOAT3(0.0f, -1.0f, 0.0f);
+    spotLight.ambientStrength  = DirectX::XMFLOAT3(0.2f, 0.2f, 0.2f);
+    spotLight.strength         = DirectX::XMFLOAT3(0.6f, 0.4f, 0.2f);
+    spotLight.fallOffStart     = 10.0f;
+    spotLight.fallOffend       = 70.0f;
+    spotLight.innerCutOffAngle = cos(DirectX::XMConvertToRadians(12.0f));
+    spotLight.outerCutOffAngle = cos(DirectX::XMConvertToRadians(17.5f));
+    // mSpotLights.push_back(spotLight);
 }
 
 void D3D12Lights::InitializeSceneMaterials()
@@ -468,7 +495,7 @@ void D3D12Lights::InitializeSceneMaterials()
     tileMaterial->cbHeapIndex    = 0;
     tileMaterial->diffuseAlbedo  = DirectX::XMFLOAT4(DirectX::Colors::LightGray);
     tileMaterial->fresnel        = DirectX::XMFLOAT3(0.02f, 0.02f, 0.02f);
-    tileMaterial->roughness      = 0.7f;
+    tileMaterial->roughness      = 0.8f;
     tileMaterial->numFramesDirty = mSwapChainBufferCount;
 
     auto steelMaterial            = std::make_shared<d3d12_common::Material>();
@@ -476,7 +503,7 @@ void D3D12Lights::InitializeSceneMaterials()
     steelMaterial->cbHeapIndex    = 1;
     steelMaterial->diffuseAlbedo  = DirectX::XMFLOAT4(DirectX::Colors::LightSteelBlue);
     steelMaterial->fresnel        = DirectX::XMFLOAT3(0.05f, 0.05f, 0.05f);
-    steelMaterial->roughness      = 0.1f;
+    steelMaterial->roughness      = 0.6f;
     steelMaterial->numFramesDirty = mSwapChainBufferCount;
 
     mMaterials["tile"]  = tileMaterial;
@@ -546,15 +573,31 @@ void D3D12Lights::InitializePSOs()
     d3d12_common::ID3DBlobPtr psByteCode = nullptr;
     d3d12_common::ID3DBlobPtr errors;
     auto const                shaderPath = GetCurrentExeFullPath() / shaderHlsl;
+    std::string            numLightsStr  = std::to_string(mDirectionalLights.size() + mSpotLights.size() + mPointLights.size());
+    std::string            numPointLights       = std::to_string(mPointLights.size());
+    std::string            numDirectionalLights = std::to_string(mDirectionalLights.size());
+    std::string            numSpotLights        = std::to_string(mSpotLights.size());
+    const D3D_SHADER_MACRO macros[]             = {
+        "NUM_LIGHTS",
+        numLightsStr.c_str(),
+        "NUM_DIRECTIONAL_LIGHTS",
+        numDirectionalLights.c_str(),  // Start index for point lights
+        "NUM_POINT_LIGHTS",
+        numPointLights.c_str(),  // Start index for spot lights
+        "NUM_SPOT_LIGHTS",
+        numSpotLights.c_str(),
+        nullptr,
+        nullptr,
+    };
 
     HRESULT hr =
-        D3DCompileFromFile(shaderPath.wstring().c_str(), nullptr, nullptr, "VSMain", "vs_5_0", 0, 0, &vsByteCode, &errors);
+        D3DCompileFromFile(shaderPath.wstring().c_str(), macros, nullptr, "VSMain", "vs_5_0", 0, 0, &vsByteCode, &errors);
 
     if (errors != nullptr)
         OutputDebugStringA((char*)errors->GetBufferPointer());
     d3d12::ThrowIfFailed(hr);
 
-    hr = D3DCompileFromFile(shaderPath.wstring().c_str(), nullptr, nullptr, "PSMain", "ps_5_0", 0, 0, &psByteCode, &errors);
+    hr = D3DCompileFromFile(shaderPath.wstring().c_str(), macros, nullptr, "PSMain", "ps_5_0", 0, 0, &psByteCode, &errors);
     if (errors != nullptr)
         OutputDebugStringA((char*)errors->GetBufferPointer());
     d3d12::ThrowIfFailed(hr);
@@ -623,6 +666,20 @@ void D3D12Lights::Update()
     perPassCBData.view           = mCamera.View().Transpose();
     perPassCBData.projection     = mCamera.Projection().Transpose();
     perPassCBData.viewProjection = mCamera.ViewProjection().Transpose();
+    perPassCBData.eyePosition    = mCamera.Position();
+    int lightIndex               = 0;
+    for (int ii = 0; ii < mDirectionalLights.size(); ii++) {
+        memcpy(&perPassCBData.lights[lightIndex], &mDirectionalLights[ii], sizeof(d3d12_common::Light));
+        lightIndex++;
+    }
+    for (int ii = 0; ii < mPointLights.size(); ii++) {
+        memcpy(&perPassCBData.lights[lightIndex], &mPointLights[ii], sizeof(d3d12_common::Light));
+        lightIndex++;
+    }
+    for (int ii = 0; ii < mSpotLights.size(); ii++) {
+        memcpy(&perPassCBData.lights[lightIndex], &mSpotLights[ii], sizeof(d3d12_common::Light));
+        lightIndex++;
+    }
     mCurrentFrameResource->perPassConstantBuffer->CopyData(0, perPassCBData);
 
     //! Update Object Data
@@ -630,7 +687,14 @@ void D3D12Lights::Update()
         if (mSceneObjects[ii]->numFramesDirty <= 0) {
             continue;
         }
-        PerObjectCBData perObjectCBData = { mSceneObjects[ii]->worldMatrix.Transpose() };
+        PerObjectCBData                    perObjectCBData = { mSceneObjects[ii]->worldMatrix.Transpose() };
+        DirectX::SimpleMath::Matrix const& m               = mSceneObjects[ii]->worldMatrix;
+        // normal matrix calculation TODO: calculate only once.
+        DirectX::XMFLOAT3X3 model3x3     = DirectX::XMFLOAT3X3(m._11, m._12, m._13, m._21, m._22, m._23, m._31, m._32, m._33);
+        DirectX::XMMATRIX   model3x3SIMD = DirectX::XMLoadFloat3x3(&model3x3);
+        model3x3SIMD                     = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, model3x3SIMD));
+        DirectX::XMStoreFloat3x3(&perObjectCBData.normalMatrix, model3x3SIMD);
+        // copy to cb
         mCurrentFrameResource->perObjectCBData->CopyData(ii, perObjectCBData);
         mSceneObjects[ii]->numFramesDirty--;
     }

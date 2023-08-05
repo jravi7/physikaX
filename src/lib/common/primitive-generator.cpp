@@ -195,7 +195,7 @@ MeshData CreateUniformGrid(int side, int cellSize)
 
         SimpleMath::Vector3 const AB    = B - A;
         SimpleMath::Vector3 const AC    = C - A;
-        SimpleMath::Vector3 const cross = AC.Cross(AB);
+        SimpleMath::Vector3 const cross = AB.Cross(AC);
 
         SimpleMath::Vector3 n1 = meshData.vertices[idx1].normal;
         SimpleMath::Vector3 n2 = meshData.vertices[idx2].normal;

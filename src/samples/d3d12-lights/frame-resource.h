@@ -7,6 +7,8 @@
 
 namespace physika {
 
+constexpr int MAX_LIGHTS = 8;
+
 template <typename T>
 using UploadBufferPtr = std::unique_ptr<physika::d3d12_common::UploadBuffer<T>>;
 
@@ -16,19 +18,20 @@ using UploadBufferPtr = std::unique_ptr<physika::d3d12_common::UploadBuffer<T>>;
  */
 struct PerPassCBData
 {
-    DirectX::SimpleMath::Matrix view;              // 64
-    DirectX::SimpleMath::Matrix projection;        // 64
-    DirectX::SimpleMath::Matrix viewProjection;    // 64
-    float                       totalTime = 0.0;   // 4
-    float                       deltaTime = 0.0f;  // 4
-    float                       pad;               // 4
-    DirectX::XMFLOAT4           pad2;              // 16
-    DirectX::XMFLOAT3X3         pad3;              // 36
+    DirectX::XMFLOAT4X4 view;            // 64
+    DirectX::XMFLOAT4X4 projection;      // 64
+    DirectX::XMFLOAT4X4 viewProjection;  // 64
+    DirectX::XMFLOAT3   eyePosition;
+    float               totalTime = 0.0;     // 16
+    float               deltaTime = 0.0f;    // 4
+    DirectX::XMFLOAT3   pad;                 // 12
+    d3d12_common::Light lights[MAX_LIGHTS];  // 64 x n
 };
 
 struct PerObjectCBData
 {
-    DirectX::SimpleMath::Matrix worldMatrix;  // 64
+    DirectX::XMFLOAT4X4 worldMatrix;   // 64
+    DirectX::XMFLOAT3X3 normalMatrix;  // 64
 };
 
 struct RenderItem
