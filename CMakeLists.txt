@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 project(PhysikaX)
-set(CMAKE_CXX_STANDARD 17)# Set C++ standard to 2017 Ref: https://matgomes.com/setting-cpp-standard-cmake/
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED On)
 set(CMAKE_CXX_EXTENSIONS Off)
 
@@ -29,3 +29,4 @@ find_package(directxtk12)
 
 # Root source directory
 add_subdirectory(src)
+add_subdirectory(samples)

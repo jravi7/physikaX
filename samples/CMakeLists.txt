@@ -1,0 +1,5 @@
+add_subdirectory(glfw-init)
+add_subdirectory(d3d12-basic)
+add_subdirectory(d3d12-compute-basic)
+add_subdirectory(d3d12-shapes)
+add_subdirectory(d3d12-lights)
